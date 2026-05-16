@@ -14,14 +14,18 @@ import {
   Search, 
   Lock, 
   Mail, 
+  Phone,
+  Instagram,
+  Facebook,
+  Linkedin,
   Pointer, 
   Globe, 
   Moon, 
   Sun,
   Settings,
   Twitter, 
-  Linkedin, 
   ArrowUp,
+  ArrowRight,
   ArrowUpRight,
   ArrowDown,
   Cloud,
@@ -75,10 +79,66 @@ import {
   Edit3
 } from 'lucide-react';
 import { useRef, useState, useEffect, ReactNode, useMemo, FormEvent, useCallback, ChangeEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { translations, Language, Translation } from './translations';
+import { createContext, useContext } from 'react';
+
+const LanguageContext = createContext<{
+  t: Translation;
+  setLanguage: (lang: Language) => void;
+  language: Language;
+} | null>(null);
+
+function useI18n() {
+  const context = useContext(LanguageContext);
+  if (!context) throw new Error('useI18n must be used within LanguageProvider');
+  return context;
+}
 
 type Page = 'home' | 'pricing' | 'get-started' | 'sign-in' | 'dashboard' | 'event-detail';
-type DashboardTab = 'events' | 'metrics' | 'calendar' | 'about' | 'profile' | 'contact';
+type DashboardTab = 'events' | 'calendar' | 'about' | 'profile' | 'contact';
 type SortField = 'name' | 'eventDate' | 'createdAt' | 'photoCount' | 'storageSize';
+
+const AZ_MONTHS_SHORT = ['Yan.', 'Fev.', 'Mar.', 'Apr.', 'May', 'İyun', 'İyul', 'Avq.', 'Sen.', 'Okt.', 'Noy.', 'Dek.'];
+const AZ_MONTHS_LONG = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun', 'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+
+const formatEventDate = (date: string | Date, language: Language, isLong: boolean = false) => {
+  const d = new Date(date);
+  // Basic sanity check to prevent NaN if date is invalid
+  if (isNaN(d.getTime())) return String(date);
+
+  if (language === 'az') {
+    const day = d.getDate();
+    const month = isLong ? AZ_MONTHS_LONG[d.getMonth()] : AZ_MONTHS_SHORT[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  }
+  
+  const locale = language === 'tr' ? 'tr-TR' : language === 'ru' ? 'ru-RU' : 'en-US';
+  return d.toLocaleDateString(locale, { 
+    day: 'numeric', 
+    month: isLong ? 'long' : 'short', 
+    year: 'numeric' 
+  });
+};
+
+interface UserProfile {
+  name: string;
+  surname: string;
+  photo?: string;
+  email: string;
+  emailVisible: boolean;
+  phone?: string;
+  phoneVisible: boolean;
+  socials: {
+    instagram?: string;
+    facebook?: string;
+    linkedin?: string;
+    pinterest?: string;
+    other?: string;
+  };
+  socialsVisible: boolean;
+  authProvider: 'google' | 'email';
+}
 
 interface Photo {
   id: string;
@@ -143,7 +203,7 @@ const MOCK_EVENTS: Event[] = [
     registrationCount: 45,
     shareSettings: {
       accessType: 'full',
-      passwordEnabled: true,
+      passwordEnabled: false,
       pin: '1234',
       registrationEnabled: false,
       fullAccessToken: 'a7b8c9d0e1f2',
@@ -235,67 +295,191 @@ const MOCK_EVENTS: Event[] = [
   }
 ];
 
-const WHY_CHOOSE_FEATURES = [
-  {
-    icon: <ScanFace className="w-5 h-5 text-white" />,
-    title: "AI Face Search",
-    desc: "Guests instantly find their photos with AI-powered face search."
-  },
-  {
-    icon: <QrCode className="w-5 h-5 text-white" />,
-    title: "QR-Based Sharing",
-    desc: "Share a single link or QR code. Everyone gets instant access."
-  },
-  {
-    icon: <Clock className="w-5 h-5 text-white" />,
-    title: "Auto-Expiring Events",
-    desc: "Events automatically expire after a set time to keep things simple and secure."
-  },
-  {
-    icon: <Filter className="w-5 h-5 text-white" />,
-    title: "Smart Browsing & Filters",
-    desc: "Guests can browse all photos or filter by gender, group size, and more."
-  },
-  {
-    icon: <Users className="w-5 h-5 text-white" />,
-    title: "Collaborative Events",
-    desc: "Invite multiple photographers to one event and upload photos together seamlessly."
-  },
-  {
-    icon: <ShieldCheck className="w-5 h-5 text-white" />,
-    title: "Privacy-Safe Recognition",
-    desc: "Face recognition is built with privacy in mind—your data stays secure and protected."
-  }
-];
-
-const CATEGORIES = [
-  {
-    img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCRlBZvjUmrzrZ2bX5hdT9S1p0HbeV0O0z6gzA-fDeIfTv1dnK_gnrWyLm5Jczy8ruS_bD0yRmlZbtjIU847jSoLW_h0PvDyS11IbwJZSiMQlMtFFsjFoyeEJxjczBt-SHlYaK21ClxOxKtyYquSZplr7c2PyUaKpahu8s5EaPeWfvYsvlZ9X8fuvwZWk9J8kCDed6OPF6snZP4MKKzNmC0n-YeGdx90IfOW00nuu6qhE7a5m-reQpG9lGjaucaJ1UUo9IbNBW-pA",
-    title: "Weddings",
-    desc: "Automated guest galleries."
-  },
-  {
-    img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCs95T99NoKC75-0iur17KMtA8jyXgeT3PW6FMbh0XrtD08FcQZz_-SaZWFrBOS0fcIK3Wc7zuP_HvMpij9mfK-rrE7kTpIbnW1U4Xkc3WXeFoKaQaB7VumEp5XQhI9108lahcODx8Xr46Eun9TTycoYKPsrTBpKQZA1TfY5aGsqJbObFREagV5yi-A2J5YiZoOEmuddYqNv0oT8oITTDGfpVatqUWOqr86NtmWsOkJ7QSPcBMvQ7KevnZVSDxzVYy50H3J7l7nAQ",
-    title: "Corporate",
-    desc: "Headshots and seminars."
-  },
-  {
-    img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDpPCLbT-3_ygh1pX_Cjj43YxIef7ebC3i7IPx1gklSUKBeGxtJl0BHLrz1beMcSBheBLMtkuA_KdpXJC0Xna_5edEJuV1liFs8IuybIIYcVwDSyvG283xTt1X2xnCXPuuCiJsOdB2PYqeET1V0FHbWpXn9-j8kADe6KymOdTU_DiKHOa7ZcBH4JNEE_Fqn5jRWekecBiWVieMj0HJqCCKQ1GOwXgqTpCg5qldkPIm_OZlJl7fPK2adnaXf1Ay8zzlm6xRPGVIaDA",
-    title: "Sports",
-    desc: "Athlete photo tagging."
-  },
-  {
-    img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCk7jjunPzrtmLEh3hQXhv2KShpFd7SRPva7z4eyG8-ytZL7RjyYISNfFRGu0UNjLCn1ad1f7wc-MilaLTeqj7DjixVvmHK95dzJ4XtClNDxUDorl1Ak0jOtKh_-uc-gwpEvNVGkuq_dh3euVU_WbqOoLy19tTcQhXsXhuMkj_hCslUTlDmuAKnTDh_BbNnHp0p-b_f6tp-ybaUUrNc0ZkwKtCuPMHFDPrVkvFDltPvjYrqZiU_2amto62kE1uliR7CwEoPssyzcQ",
-    title: "Nightlife" ,
-    desc: "Club and festival sharing."
-  }
-];
 
 export default function App() {
+  return (
+    <LanguageProvider>
+      <MainApp />
+    </LanguageProvider>
+  );
+}
+
+const languageOptions: { code: Language; label: string; flag: string }[] = [
+  { code: 'az', label: 'AZ', flag: '🇦🇿' },
+  { code: 'tr', label: 'TR', flag: '🇹🇷' },
+  { code: 'en', label: 'EN', flag: '🇺🇸' },
+  { code: 'ru', label: 'RU', flag: '🇷🇺' },
+];
+
+function LanguageSwitcher({ current, onChange, isDark }: { current: Language; onChange: (lang: Language) => void; isDark: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selected = languageOptions.find(opt => opt.code === current) || languageOptions[2];
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-black tracking-widest uppercase ${
+          isDark 
+            ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' 
+            : 'bg-white border-slate-200 text-brand-dark hover:bg-slate-50 shadow-sm'
+        }`}
+      >
+        <span>{selected.flag}</span>
+        <span>{selected.label}</span>
+        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className={`absolute top-full mt-2 right-0 w-32 rounded-xl border p-1 z-[60] shadow-2xl backdrop-blur-md ${
+              isDark 
+                ? 'bg-[#12161F]/90 border-white/10' 
+                : 'bg-white/90 border-slate-200'
+            }`}
+          >
+            {languageOptions.map((opt) => (
+              <button
+                key={opt.code}
+                onClick={() => {
+                  onChange(opt.code);
+                  setIsOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                  current === opt.code 
+                    ? 'bg-primary text-white' 
+                    : `text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5`
+                }`}
+              >
+                <span>{opt.flag}</span>
+                <span>{opt.label}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function LanguageProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguage] = useState<Language>(() => {
+    const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] as any : 'en';
+    const supported: Language[] = ['en', 'az', 'tr', 'ru'];
+    return supported.includes(browserLang) ? browserLang : 'en';
+  });
+  
+  const t = translations[language];
+
+  return (
+    <LanguageContext.Provider value={{ t, language, setLanguage }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+}
+
+function MainApp() {
+  const { t, language, setLanguage } = useI18n();
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>('events');
+
+  const HERO_FEATURES = [
+    {
+      icon: <ScanFace className="w-6 h-6" />,
+      title: "AI-Powered Face Detection",
+      desc: "Fast client access, no manually tagging hundreds."
+    },
+    {
+      icon: <Cloud className="w-6 h-6" />,
+      title: "Secure & Scalable Galleries",
+      desc: "Unlimited uploads, easy organization."
+    },
+    {
+      icon: <Share2 className="w-6 h-6" />,
+      title: "Instant, Effortless Sharing",
+      desc: "Generated dynamic links with one click."
+    },
+    {
+      icon: <Camera className="w-6 h-6" />,
+      title: "Delight Clients, Grow Business",
+      desc: "Provide a superior, hassle-free delivery experience."
+    }
+  ];
+
+  const WHY_CHOOSE_FEATURES = [
+    {
+      icon: <ScanFace className="w-5 h-5 text-white" />,
+      title: t.aiFaceSearch,
+      desc: t.aiFaceSearchWhyDesc
+    },
+    {
+      icon: <QrCode className="w-5 h-5 text-white" />,
+      title: t.qrSharingTitle,
+      desc: t.qrSharingDesc
+    },
+    {
+      icon: <Clock className="w-5 h-5 text-white" />,
+      title: t.autoExpiringTitle,
+      desc: t.autoExpiringDesc
+    },
+    {
+      icon: <Filter className="w-5 h-5 text-white" />,
+      title: t.smartBrowsingTitle,
+      desc: t.smartBrowsingDesc
+    },
+    {
+      icon: <Users className="w-5 h-5 text-white" />,
+      title: t.collaborativeEventsTitle,
+      desc: t.collaborativeEventsDesc
+    },
+    {
+      icon: <ShieldCheck className="w-5 h-5 text-white" />,
+      title: t.privacySafeTitle,
+      desc: t.privacySafeDesc
+    }
+  ];
+
+  const CATEGORIES = [
+    {
+      img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCRlBZvjUmrzrZ2bX5hdT9S1p0HbeV0O0z6gzA-fDeIfTv1dnK_gnrWyLm5Jczy8ruS_bD0yRmlZbtjIU847jSoLW_h0PvDyS11IbwJZSiMQlMtFFsjFoyeEJxjczBt-SHlYaK21ClxOxKtyYquSZplr7c2PyUaKpahu8s5EaPeWfvYsvlZ9X8fuvwZWk9J8kCDed6OPF6snZP4MKKzNmC0n-YeGdx90IfOW00nuu6qhE7a5m-reQpG9lGjaucaJ1UUo9IbNBW-pA",
+      title: t.categoryWeddings,
+      desc: t.categoryWeddingsDesc
+    },
+    {
+      img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCs95T99NoKC75-0iur17KMtA8jyXgeT3PW6FMbh0XrtD08FcQZz_-SaZWFrBOS0fcIK3Wc7zuP_HvMpij9mfK-rrE7kTpIbnW1U4Xkc3WXeFoKaQaB7VumEp5XQhI9108lahcODx8Xr46Eun9TTycoYKPsrTBpKQZA1TfY5aGsqJbObFREagV5yi-A2J5YiZoOEmuddYqNv0oT8oITTDGfpVatqUWOqr86NtmWsOkJ7QSPcBMvQ7KevnZVSDxzVYy50H3J7l7nAQ",
+      title: t.categoryCorporate,
+      desc: t.categoryCorporateDesc
+    },
+    {
+      img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDpPCLbT-3_ygh1pX_Cjj43YxIef7ebC3i7IPx1gklSUKBeGxtJl0BHLrz1beMcSBheBLMtkuA_KdpXJC0Xna_5edEJuV1liFs8IuybIIYcVwDSyvG283xTt1X2xnCXPuuCiJsOdB2PYqeET1V0FHbWpXn9-j8kADe6KymOdTU_DiKHOa7ZcBH4JNEE_Fqn5jRWekecBiWVieMj0HJqCCKQ1GOwXgqTpCg5qldkPIm_OZlJl7fPK2adnaXf1Ay8zzlm6xRPGVIaDA",
+      title: t.categorySports,
+      desc: t.categorySportsDesc
+    },
+    {
+      img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCk7jjunPzrtmLEh3hQXhv2KShpFd7SRPva7z4eyG8-ytZL7RjyYISNfFRGu0UNjLCn1ad1f7wc-MilaLTeqj7DjixVvmHK95dzJ4XtClNDxUDorl1Ak0jOtKh_-uc-gwpEvNVGkuq_dh3euVU_WbqOoLy19tTcQhXsXhuMkj_hCslUTlDmuAKnTDh_BbNnHp0p-b_f6tp-ybaUUrNc0ZkwKtCuPMHFDPrVkvFDltPvjYrqZiU_2amto62kE1uliR7CwEoPssyzcQ",
+      title: t.categoryNightlife,
+      desc: t.categoryNightlifeDesc
+    }
+  ];
+
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') === 'dark' || 
@@ -305,6 +489,21 @@ export default function App() {
   });
 
   const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    name: 'Ibrahim',
+    surname: 'Fataliyev',
+    email: 'ibrahimov9910@gmail.com',
+    emailVisible: true,
+    phone: '+994 50 123 45 67',
+    phoneVisible: true,
+    socials: {
+      instagram: 'ibrahim_ph',
+      facebook: 'ibrahim.fataliyev',
+      linkedin: 'ibrahimf',
+    },
+    socialsVisible: true,
+    authProvider: 'google', // Defaulting to google for this mock
+  });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [guestToken, setGuestToken] = useState<string | null>(null);
 
@@ -380,7 +579,6 @@ export default function App() {
 
   const scrollRef = useRef(null);
   const { scrollYProgress } = useScroll();
-  const laptopScale = useTransform(scrollYProgress, [0, 0.2], [0.9, 1]);
 
   if (guestToken) {
     const event = events.find(e => 
@@ -403,6 +601,7 @@ export default function App() {
         <GuestView 
           event={guestEvent as Event} 
           isDark={isDark} 
+          userProfile={userProfile}
           onClose={() => {
             setGuestToken(null);
             window.history.pushState({}, '', '/');
@@ -487,6 +686,8 @@ export default function App() {
             onDeleteEvent={(id) => {
               setEvents(prev => prev.filter(e => e.id !== id));
             }}
+            userProfile={userProfile}
+            setUserProfile={setUserProfile}
           />
         )}
       </>
@@ -517,7 +718,7 @@ export default function App() {
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => setCurrentPage('home')}
           >
-            <div className="text-2xl font-extrabold tracking-tighter text-indigo-900 dark:text-white">Phoboo</div>
+            <div className="text-2xl font-black tracking-tighter text-brand-dark dark:text-white">Phoboo</div>
           </motion.div>
           
           <div className="hidden md:flex items-center gap-x-8">
@@ -525,17 +726,18 @@ export default function App() {
               onClick={() => setCurrentPage('home')}
               className={`text-sm font-semibold transition-all ${currentPage === 'home' ? 'text-primary border-b-2 border-primary pb-1' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
             >
-              Home
+              {t.home}
             </button>
             <button 
               onClick={() => setCurrentPage('pricing')}
               className={`text-sm font-semibold transition-all ${currentPage === 'pricing' ? 'text-primary border-b-2 border-primary pb-1' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
             >
-              Pricing
+              {t.pricing}
             </button>
           </div>
 
           <div className="flex items-center gap-4">
+            <LanguageSwitcher current={language} onChange={setLanguage} isDark={isDark} />
             <button 
               onClick={() => setIsDark(!isDark)}
               className="p-2 rounded-full bg-white/30 hover:bg-white/50 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
@@ -551,7 +753,7 @@ export default function App() {
                   {isDark ? (
                     <Sun className="w-5 h-5 text-yellow-400" />
                   ) : (
-                    <Moon className="w-5 h-5 text-indigo-600" />
+                    <Moon className="w-5 h-5 text-primary" />
                   )}
                 </motion.div>
               </AnimatePresence>
@@ -560,13 +762,13 @@ export default function App() {
               onClick={() => setCurrentPage('sign-in')}
               className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-primary transition-all whitespace-nowrap"
             >
-              Sign In
+              {t.signIn}
             </button>
             <button 
               onClick={() => setCurrentPage('get-started')}
               className="vibrant-gradient text-white px-6 py-2 rounded-lg text-sm font-bold transition-all transform hover:scale-105 active:scale-95"
             >
-              Get Started
+              {t.getStarted}
             </button>
           </div>
         </div>
@@ -583,152 +785,130 @@ export default function App() {
             className="pt-24"
           >
             {/* Hero Section */}
-            <section className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-start lg:pt-32">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="space-y-8 lg:sticky lg:top-32"
-              >
-                <h1 className="text-3xl lg:text-5xl font-extrabold text-indigo-950 dark:text-white leading-[1.1] tracking-tight">
-                  The fastest way to <span className="text-primary drop-shadow-[0_0_15px_rgba(139,92,246,0.2)]">deliver event photos.</span>
-                </h1>
-
+            <section className="relative h-screen flex flex-col justify-center bg-[#F9F6F1] dark:bg-[#0B0E14] px-6 overflow-hidden">
+              <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center py-0 -mt-24 mb-8">
                 <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4, duration: 0.8 }}
-                  className="flex items-center justify-between lg:justify-start gap-2 md:gap-8 py-4 w-full"
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  className="flex flex-col gap-6 z-10"
                 >
-                  <div className="flex flex-col md:flex-row items-center gap-1 md:gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 relative overflow-visible">
-                      <Camera className="w-4 h-4 z-10" />
-                      <motion.div
-                        animate={{ 
-                          opacity: [0, 1, 0],
-                          scale: [0, 1.8, 0],
-                          filter: ["blur(0px)", "blur(2px)", "blur(0px)"]
-                        }}
-                        transition={{ repeat: Infinity, duration: 3, times: [0, 0.05, 1], ease: "easeOut" }}
-                        className="absolute top-1.5 right-1.5 w-3 h-3 bg-white rounded-full z-20 shadow-[0_0_10px_white]"
-                      />
-                    </div>
-                    <span className="text-[10px] md:text-sm font-bold text-indigo-950 dark:text-slate-300 uppercase tracking-tight md:tracking-wider">Shoot</span>
-                  </div>
-
-                  <div className="flex-1 max-w-[30px] md:max-w-[40px] h-[2px] bg-primary/10 relative overflow-hidden rounded-full">
-                    <motion.div 
-                      animate={{ x: [-40, 40] }}
-                      transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                      className="absolute inset-y-0 w-8 bg-gradient-to-r from-transparent via-primary to-transparent"
-                    />
-                  </div>
-
-                  <div className="flex flex-col md:flex-row items-center gap-1 md:gap-3">
-                    <div className="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center text-secondary shrink-0 relative overflow-hidden">
-                      <Cloud className="w-4 h-4 z-10 opacity-60" />
-                      <motion.div
-                        animate={{ 
-                          y: [8, -12],
-                          opacity: [0, 1, 0]
-                        }}
-                        transition={{ repeat: Infinity, duration: 2, ease: "circIn", delay: 0.5 }}
-                        className="absolute z-20"
-                      >
-                        <ArrowUp className="w-3 h-3 text-secondary" />
-                      </motion.div>
-                    </div>
-                    <span className="text-[10px] md:text-sm font-bold text-indigo-950 dark:text-slate-300 uppercase tracking-tight md:tracking-wider">Upload</span>
-                  </div>
-
-                  <div className="flex-1 max-w-[30px] md:max-w-[40px] h-[2px] bg-secondary/10 relative overflow-hidden rounded-full">
-                    <motion.div 
-                      animate={{ x: [-40, 40] }}
-                      transition={{ repeat: Infinity, duration: 1.5, ease: "linear", delay: 0.5 }}
-                      className="absolute inset-y-0 w-8 bg-gradient-to-r from-transparent via-secondary to-transparent"
-                    />
-                  </div>
-
-                  <div className="flex flex-col md:flex-row items-center gap-1 md:gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-950/10 dark:bg-white/10 flex items-center justify-center shrink-0 relative overflow-hidden">
-                      <ScanFace className="w-4 h-4 text-indigo-950 dark:text-white z-10" />
-                      <motion.div
-                        animate={{ opacity: [0.3, 1, 0.3] }}
-                        transition={{ repeat: Infinity, duration: 2 }}
-                        className="absolute inset-0 flex flex-col justify-between p-1.5"
-                      >
-                        <div className="flex justify-between w-full">
-                          <div className="w-1 h-1 border-t border-l border-primary" />
-                          <div className="w-1 h-1 border-t border-r border-primary" />
-                        </div>
-                        <div className="flex justify-between w-full">
-                          <div className="w-1 h-1 border-b border-l border-primary" />
-                          <div className="w-1 h-1 border-b border-r border-primary" />
-                        </div>
-                      </motion.div>
-                      <motion.div 
-                        animate={{ y: [-12, 12, -12] }}
-                        transition={{ repeat: Infinity, duration: 3 }}
-                        className="absolute left-1/2 -translate-x-1/2 w-4 h-[1px] bg-primary/60 shadow-[0_0_8px_rgba(139,92,246,0.8)]"
-                      />
-                    </div>
-                    <div className="flex flex-col items-center md:items-start text-center md:text-left">
-                      <span className="text-[10px] md:text-sm font-black text-indigo-950 dark:text-white uppercase tracking-tight md:tracking-wider leading-none">Delivered</span>
-                      <span className="hidden md:block text-[10px] text-slate-500 dark:text-slate-400 font-medium">Instant Matching</span>
-                    </div>
+                  <div className="space-y-3">
+                    <h1 className="text-[52px] lg:text-[60px] font-serif font-black text-[#1C1C1C] dark:text-white leading-[1.05] tracking-tight">
+                      Upload. Deliver.<br/>
+                      <span className="text-[#1C1C1C] dark:text-white">Shared in Seconds.</span>
+                    </h1>
+                    <p className="text-[#4A4A4A] dark:text-slate-400 max-w-xl text-sm font-medium leading-relaxed">
+                      Your complete AI-powered gallery. The absolute fastest way to get event photos to your clients. Perfect for photographers, zero friction for guests.
+                    </p>
                   </div>
                 </motion.div>
-                
-                <div className="flex flex-col gap-4 max-w-md">
-                  <FeatureItem 
-                    icon={<ScanFace className="w-4 h-4 text-white" />}
-                    title="AI face search"
-                    desc="Find every photo you're in instantly using advanced facial recognition."
-                    delay={0.1}
-                  />
-                  <FeatureItem 
-                    icon={<Filter className="w-4 h-4 text-white" />}
-                    title="Smart filtering"
-                    desc="Effortlessly sort through entire galleries by gender and person count."
-                    delay={0.2}
-                  />
-                  <FeatureItem 
-                    icon={<LayoutGrid className="w-4 h-4 text-white" />}
-                    title="Elegant gallery UI"
-                    desc="A premium, distraction-free viewing experience designed for high-end events."
-                    delay={0.3}
-                  />
-                  <FeatureItem 
-                    icon={<Share2 className="w-4 h-4 text-white" />}
-                    title="One-tap sharing"
-                    desc="Instantly download or share high-resolution memories with a single tap."
-                    delay={0.4}
-                  />
-                </div>
-              </motion.div>
 
-              {/* Laptop Mockup */}
-              <motion.div 
-                style={{ scale: laptopScale }}
-                className="relative group lg:ml-8"
-              >
-                <div className="absolute -inset-4 bg-primary/20 rounded-3xl blur-3xl group-hover:bg-primary/30 transition-all duration-500"></div>
-                <div className="relative rounded-2xl overflow-hidden border border-white/50 dark:border-white/10 shadow-2xl bg-white/20 dark:bg-slate-900/40 backdrop-blur-md">
-                  <img 
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCiT2co2TEYSQkqKhuRgWXDdi02HnF-q9gbdKC9NrDVYqXce-9k0fGgzo6a7se6Ie72sjo73o0uQa1sL4C28zg4RKBaLQmuUJd2-O6Us9pDrXAISyKdkRewoPcFkCXcfK-SsTRkpnlMj9V5nIeiqZ-RnWkfYm5JitvFQrqYDa71-PR5OcaWvPU7RQpYplnQ14--BQS4yTR2vbQ5F9ooZkICxXNw8kZ3IQfp_mhEF4zq9qa_BAwybGNnKFeunHqjbTquqofwpZBfw" 
-                    alt="Photographer browsing photos"
-                    className="w-full h-auto object-cover"
+                {/* Laptop Mockup Visual */}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.8, x: 50 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className="relative"
+                >
+                  {/* Laptop Mockup Wrapper */}
+                  <div className="relative z-10 w-full max-w-[580px] ml-auto">
+                    {/* Screen Content - Standing alone without the frame */}
+                    <div className="relative aspect-[16/10] rounded-2xl overflow-hidden bg-white shadow-2xl border border-[#C19A5B]/10 dark:border-white/10 shadow-[#C19A5B]/10">
+                      <img 
+                        src="/src/assets/images/regenerated_image_1778956970237.png" 
+                        alt="Phoboo Gallery Interface"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/[0.02]" />
+                    </div>
+
+                    {/* Overlays removed per user request */}
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Feature Cards Grid */}
+              <div className="max-w-7xl mx-auto w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 z-10 -mt-4">
+                {HERO_FEATURES.map((feature, i) => (
+                  <motion.div
+                    key={feature.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 + i * 0.1, duration: 0.6 }}
+                    className="bg-white dark:bg-white/5 border border-[#C19A5B]/10 dark:border-white/5 p-5 rounded-[1.5rem] transition-all hover:translate-y-[-4px] hover:shadow-xl group"
+                  >
+                    <div className="w-10 h-10 bg-[#F9F6F1] dark:bg-white/10 rounded-xl flex items-center justify-center mb-3 text-[#C19A5B] group-hover:bg-[#C19A5B] group-hover:text-white transition-all duration-300">
+                      <div className="scale-75">{feature.icon}</div>
+                    </div>
+                    <h3 className="text-base font-bold text-[#1C1C1C] dark:text-white mb-1 tracking-tight">
+                      {feature.title}
+                    </h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-[12px] font-medium leading-snug">
+                      {feature.desc}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </section>
+
+            {/* How It Works Section */}
+            <section className="py-24 bg-white/30 dark:bg-white/5 backdrop-blur-sm relative overflow-hidden">
+              <div className="max-w-7xl mx-auto px-6 relative z-10">
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="text-center mb-20"
+                >
+                  <h2 className="text-4xl md:text-5xl font-serif font-black text-brand-dark dark:text-white mb-4 tracking-tight">
+                    {t.howItWorks.split(' ')[0]} <span className="text-primary italic">{t.howItWorks.split(' ').slice(1).join(' ')}</span>
+                  </h2>
+                  <p className="text-slate-600 dark:text-slate-400 font-medium text-lg">{t.howItWorksSub}</p>
+                </motion.div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+                  <div className="hidden md:block absolute top-[160px] left-[15%] right-[15%] h-[2px] bg-primary/5 -z-10">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      whileInView={{ width: "100%" }}
+                      transition={{ duration: 2, ease: "easeInOut", delay: 0.8 }}
+                      className="h-full bg-gradient-to-r from-primary via-primary/50 to-secondary"
+                    />
+                  </div>
+
+                  <Step 
+                    number="01" 
+                    title={t.step1Title} 
+                    desc={t.step1Desc} 
+                    illustration={<EventFormIllustration />}
+                    direction="left"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                  <Step 
+                    number="02" 
+                    title={t.step2Title} 
+                    desc={t.step2Desc} 
+                    illustration={<UploadIllustration />}
+                    direction="up"
+                  />
+                  <Step 
+                    number="03" 
+                    title={t.step3Title} 
+                    desc={t.step3Desc} 
+                    illustration={<DiscoveryIllustration />}
+                    direction="right"
+                  />
                 </div>
-              </motion.div>
+              </div>
+              <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-primary/5 blur-[100px] rounded-full" />
+              <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-600/5 blur-[120px] rounded-full" />
             </section>
 
             {/* Why Choose Section */}
             <section className="py-24 relative overflow-hidden">
               <div className="max-w-7xl mx-auto px-6 mb-16 text-center">
-                <h2 className="text-4xl font-bold text-indigo-950 dark:text-white mb-4 tracking-tight">Why Choose <span className="text-primary">Phoboo</span></h2>
-                <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-lg font-medium">Professional speed and simplicity for modern event photographers.</p>
+                <h2 className="text-4xl font-serif font-bold text-brand-dark dark:text-white mb-4 tracking-tight">{t.whyChoose.split(' ')[0]} {t.whyChoose.split(' ')[1]} <span className="text-primary italic">{t.whyChoose.split(' ')[2] || ''}</span></h2>
+                <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-lg font-medium">{t.whyChooseSub}</p>
               </div>
               
               <div className="relative">
@@ -749,90 +929,6 @@ export default function App() {
               </div>
             </section>
 
-            {/* How It Works Section */}
-            <section className="py-24 bg-white/30 dark:bg-white/5 backdrop-blur-sm relative overflow-hidden">
-              <div className="max-w-7xl mx-auto px-6 relative z-10">
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  className="text-center mb-20"
-                >
-                  <h2 className="text-4xl md:text-5xl font-black text-indigo-950 dark:text-white mb-4 tracking-tighter">How <span className="text-primary">Phoboo Works</span></h2>
-                  <p className="text-slate-600 dark:text-slate-400 font-medium text-lg">Three simple steps to automate your gallery delivery.</p>
-                </motion.div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-                  <div className="hidden md:block absolute top-[160px] left-[15%] right-[15%] h-[2px] bg-primary/5 -z-10">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      whileInView={{ width: "100%" }}
-                      transition={{ duration: 2, ease: "easeInOut", delay: 0.8 }}
-                      className="h-full bg-gradient-to-r from-primary via-indigo-400 to-secondary"
-                    />
-                  </div>
-
-                  <Step 
-                    number="01" 
-                    title="Create Your Event" 
-                    desc="Set up your event in seconds." 
-                    illustration={<EventFormIllustration />}
-                    direction="left"
-                  />
-                  <Step 
-                    number="02" 
-                    title="Upload Your Photos" 
-                    desc="Upload all photos at once or add them anytime." 
-                    illustration={<UploadIllustration />}
-                    direction="up"
-                  />
-                  <Step 
-                    number="03" 
-                    title="Share & Let Guests Find Photos" 
-                    desc="Share a QR or link. Guests can browse or instantly find theirs with AI." 
-                    illustration={<DiscoveryIllustration />}
-                    direction="right"
-                  />
-                </div>
-              </div>
-              <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-primary/5 blur-[100px] rounded-full" />
-              <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-600/5 blur-[120px] rounded-full" />
-            </section>
-
-            {/* Occasion Categories */}
-            <section className="py-24 overflow-hidden">
-              <div className="max-w-7xl mx-auto px-6 mb-12">
-                <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
-                  <div>
-                    <h2 className="text-4xl font-bold text-indigo-950 dark:text-white">Built for <span className="text-primary">Every Occasion</span></h2>
-                    <p className="text-slate-600 dark:text-slate-400 text-lg mt-2 font-medium">Specialized workflows for diverse photography niches.</p>
-                  </div>
-                  <motion.button 
-                    whileHover={{ x: 5 }}
-                    className="flex items-center gap-2 text-primary font-bold"
-                  >
-                    See all categories <ChevronRight className="w-4 h-4" />
-                  </motion.button>
-                </div>
-              </div>
-
-              <div className="relative">
-                <div className="overflow-hidden">
-                  <div className="flex gap-4 md:gap-6 whitespace-nowrap animate-infinite-scroll w-fit">
-                    {[...CATEGORIES, ...CATEGORIES, ...CATEGORIES].map((cat, idx) => (
-                      <CategoryCard 
-                        key={`${cat.title}-${idx}`} 
-                        img={cat.img}
-                        title={cat.title}
-                        desc={cat.desc}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="absolute inset-y-0 left-0 w-8 md:w-16 bg-gradient-to-r from-[#F0F4FF] dark:from-[#0B0E14] to-transparent z-10" />
-                <div className="absolute inset-y-0 right-0 w-8 md:w-16 bg-gradient-to-l from-[#F0F4FF] dark:from-[#0B0E14] to-transparent z-10" />
-              </div>
-            </section>
 
             {/* CTA Section */}
             <section className="max-w-7xl mx-auto px-6 mb-24">
@@ -847,18 +943,17 @@ export default function App() {
                 </div>
                 <div className="relative z-10 space-y-8">
                   <h2 className="text-4xl md:text-6xl font-extrabold text-white leading-tight">
-                    Ready to <span className="underline decoration-white/30 decoration-4 underline-offset-8">Transform</span> Your Workflow?
+                    {t.readyToAutomate.split(' ').slice(0, 2).join(' ')} <span className="underline decoration-white/30 decoration-4 underline-offset-8">{t.readyToAutomate.split(' ').slice(2, 3).join(' ')}</span> {t.readyToAutomate.split(' ').slice(3).join(' ')}
                   </h2>
                   <p className="text-indigo-100 text-xl max-w-2xl mx-auto font-medium">
-                    Join 5,000+ photographers automating their delivery. <br />
-                    Start your 14-day free trial today.
+                    {t.getStartedNow}
                   </p>
                   <div className="pt-4">
                     <button 
                       onClick={() => setCurrentPage('get-started')}
                       className="bg-white text-primary px-12 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-all shadow-xl shadow-indigo-900/20 active:scale-95"
                     >
-                      Get Started Now
+                      {t.getStarted}
                     </button>
                   </div>
                 </div>
@@ -886,16 +981,16 @@ export default function App() {
       <footer className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl w-full py-16 border-t border-white/20 dark:border-white/5">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div className="space-y-6 lg:col-span-1">
-            <div className="text-2xl font-extrabold text-indigo-900 dark:text-white tracking-tighter">Phoboo</div>
+            <div className="text-2xl font-black text-brand-dark dark:text-white tracking-tighter">Phoboo</div>
             <p className="text-sm text-slate-500 max-w-xs leading-relaxed">
-              Elevating professional photography through intelligent automation and seamless cloud delivery.
+              {t.footerDesc}
             </p>
-            <div className="text-sm text-slate-400">© 2024 Phoboo. All rights reserved.</div>
+            <div className="text-sm text-slate-400">{t.copyright}</div>
           </div>
           
-          <FooterColumn title="Legal" links={["Privacy", "Terms"]} />
-          <FooterColumn title="Support" links={["Global Support", "Documentation"]} />
-          <FooterColumn title="Connect" icons={[
+          <FooterColumn title={t.legal} links={[t.privacy, t.terms]} />
+          <FooterColumn title={t.supportTitle} links={[t.globalSupport, t.documentation]} />
+          <FooterColumn title={t.connect} icons={[
             { icon: <Twitter className="w-4 h-4" />, name: "Twitter" },
             { icon: <Linkedin className="w-4 h-4" />, name: "LinkedIn" }
           ]} />
@@ -906,6 +1001,7 @@ export default function App() {
 }
 
 function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => void, onLogin: () => void, key?: string | number }) {
+  const { t } = useI18n();
   const [showExtraFields, setShowExtraFields] = useState(false);
 
   return (
@@ -923,21 +1019,21 @@ function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => v
           className="max-w-md w-full space-y-8 z-10"
         >
           <div className="text-center lg:text-left">
-            <h1 className="text-4xl font-black text-indigo-950 dark:text-white tracking-tighter mb-2">Create your <span className="text-primary italic">free account</span></h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Already have an account? <button onClick={onSwitchToLogin} className="text-primary hover:underline font-bold">Log in</button></p>
+            <h1 className="text-4xl font-serif font-black text-brand-dark dark:text-white tracking-tighter mb-2">{t.createFreeAccount.split(' ').slice(0, 2).join(' ')} <span className="text-primary italic">{t.createFreeAccount.split(' ').slice(2).join(' ')}</span></h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">{t.alreadyHaveAccount} <button onClick={onSwitchToLogin} className="text-primary hover:underline font-bold">{t.login}</button></p>
           </div>
 
           <div className="space-y-4">
             <button 
               onClick={onLogin}
-              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-white/10 transition-all shadow-sm group">
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-brand-dark dark:text-white hover:bg-slate-50 dark:hover:bg-white/10 transition-all shadow-sm group">
               <svg className="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
-              Sign up with Google
+              {t.signUpGoogle}
             </button>
             <button 
               onClick={onLogin}
@@ -945,7 +1041,7 @@ function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => v
               <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2.0-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.702z" />
               </svg>
-              Sign up with Apple
+              {t.signUpApple}
             </button>
           </div>
 
@@ -954,18 +1050,18 @@ function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => v
               <div className="w-full border-t border-slate-200 dark:border-white/10" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-[#F0F4FF] dark:bg-[#0B0E14] px-4 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Or use your email</span>
+              <span className="bg-background dark:bg-[#0B0E14] px-4 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.orUseEmail}</span>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="space-y-2 group">
-              <label className="text-xs font-black text-indigo-950 dark:text-white uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Email Address</label>
+              <label className="text-xs font-black text-brand-dark dark:text-white uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">{t.emailAddress}</label>
               <input 
                 type="email" 
                 placeholder="you@email.com"
                 onFocus={() => setShowExtraFields(true)}
-                className="w-full px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 text-indigo-950 dark:text-white font-medium"
+                className="w-full px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 text-brand-dark dark:text-white font-medium"
               />
             </div>
 
@@ -978,7 +1074,7 @@ function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => v
                   className="space-y-4 overflow-hidden"
                 >
                   <div className="space-y-2 group">
-                    <label className="text-xs font-black text-indigo-950 dark:text-white uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Full Name</label>
+                    <label className="text-xs font-black text-indigo-950 dark:text-white uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">{t.fullName}</label>
                     <input 
                       type="text" 
                       placeholder="Jane Doe"
@@ -986,7 +1082,7 @@ function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => v
                     />
                   </div>
                   <div className="space-y-2 group">
-                    <label className="text-xs font-black text-indigo-950 dark:text-white uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Password</label>
+                    <label className="text-xs font-black text-indigo-950 dark:text-white uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">{t.password}</label>
                     <input 
                       type="password" 
                       placeholder="••••••••"
@@ -1007,7 +1103,7 @@ function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => v
               }}
               className="w-full py-4 vibrant-gradient text-white rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20"
             >
-              {showExtraFields ? "Create Account" : "Continue with Email"}
+              {showExtraFields ? t.createAccountLabel : t.continueWithEmail}
             </button>
           </div>
 
@@ -1034,7 +1130,7 @@ function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => v
               alt="Professional photographer workspace"
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/40 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/40 via-transparent to-transparent" />
             
             {/* Overlay UI mockup */}
             <motion.div 
@@ -1067,6 +1163,7 @@ function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => v
 }
 
 function SignInPage({ onSwitchToRegister, onLogin }: { onSwitchToRegister: () => void, onLogin: () => void, key?: string | number }) {
+  const { t } = useI18n();
   return (
     <motion.main 
       initial={{ opacity: 0 }}
@@ -1082,21 +1179,23 @@ function SignInPage({ onSwitchToRegister, onLogin }: { onSwitchToRegister: () =>
           className="max-w-md w-full space-y-8 z-10"
         >
           <div className="text-center lg:text-left">
-            <h1 className="text-4xl font-black text-indigo-950 dark:text-white tracking-tighter mb-2">Welcome <span className="text-primary italic">Back</span></h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">New to Phoboo? <button onClick={onSwitchToRegister} className="text-primary hover:underline font-bold">Create account</button></p>
+            <h1 className="text-4xl font-serif font-black text-brand-dark dark:text-white tracking-tighter mb-2">
+              {t.welcomeBack.split(' ')[0]} <span className="text-primary italic">{t.welcomeBack.split(' ')[1] || ''}</span>
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">{t.newToPhoboo} <button onClick={onSwitchToRegister} className="text-primary hover:underline font-bold">{t.createAccount}</button></p>
           </div>
 
           <div className="space-y-4">
             <button 
               onClick={onLogin}
-              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-white/10 transition-all shadow-sm">
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-brand-dark dark:text-white hover:bg-slate-50 dark:hover:bg-white/10 transition-all shadow-sm">
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
-              Log in with Google
+              {t.logInGoogle}
             </button>
           </div>
 
@@ -1105,35 +1204,35 @@ function SignInPage({ onSwitchToRegister, onLogin }: { onSwitchToRegister: () =>
               <div className="w-full border-t border-slate-200 dark:border-white/10" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-[#F0F4FF] dark:bg-[#0B0E14] px-4 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Or enter details</span>
+              <span className="bg-background dark:bg-[#0B0E14] px-4 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.orEnterDetails}</span>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="space-y-2 group">
-              <label className="text-xs font-black text-indigo-950 dark:text-white uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Email</label>
+              <label className="text-xs font-black text-brand-dark dark:text-white uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">{t.email}</label>
               <input 
                 type="email" 
                 placeholder="you@email.com"
-                className="w-full px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 text-indigo-950 dark:text-white font-medium"
+                className="w-full px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 text-brand-dark dark:text-white font-medium"
               />
             </div>
             <div className="space-y-2 group">
               <div className="flex justify-between items-center px-1">
-                <label className="text-xs font-black text-indigo-950 dark:text-white uppercase tracking-widest group-focus-within:text-primary transition-colors">Password</label>
-                <button className="text-[10px] font-bold text-primary hover:underline">Forgot?</button>
+                <label className="text-xs font-black text-brand-dark dark:text-white uppercase tracking-widest group-focus-within:text-primary transition-colors">{t.password}</label>
+                <button className="text-[10px] font-bold text-primary hover:underline">{t.forgot}</button>
               </div>
               <input 
                 type="password" 
                 placeholder="••••••••"
-                className="w-full px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 text-indigo-950 dark:text-white font-medium"
+                className="w-full px-6 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600 text-brand-dark dark:text-white font-medium"
               />
             </div>
             <button 
               onClick={onLogin}
               className="w-full py-4 vibrant-gradient text-white rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20"
             >
-              Sign In
+              {t.signIn}
             </button>
           </div>
         </motion.div>
@@ -1154,7 +1253,7 @@ function SignInPage({ onSwitchToRegister, onLogin }: { onSwitchToRegister: () =>
               alt="Photography equipment"
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/40 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/40 via-transparent to-transparent" />
           </motion.div>
         </div>
       </div>
@@ -1162,7 +1261,7 @@ function SignInPage({ onSwitchToRegister, onLogin }: { onSwitchToRegister: () =>
   );
 }
 
-function Dashboard({ activeTab, setActiveTab, onLogout, isDark, setIsDark, onSelectEvent, events, onCreateEvent, onUpdateEvent, onDeleteEvent }: { 
+function Dashboard({ activeTab, setActiveTab, onLogout, isDark, setIsDark, onSelectEvent, events, onCreateEvent, onUpdateEvent, onDeleteEvent, userProfile, setUserProfile }: { 
   activeTab: DashboardTab, 
   setActiveTab: (tab: DashboardTab) => void,
   onLogout: () => void,
@@ -1173,37 +1272,42 @@ function Dashboard({ activeTab, setActiveTab, onLogout, isDark, setIsDark, onSel
   onCreateEvent: () => void,
   onUpdateEvent: (event: Event) => void,
   onDeleteEvent: (id: string) => void,
+  userProfile: UserProfile,
+  setUserProfile: (profile: UserProfile) => void,
   key?: string | number
 }) {
+  const { t, language, setLanguage } = useI18n();
   return (
-    <div className="flex bg-[#F8FAFF] dark:bg-[#0B0E14] min-h-screen">
+    <div className="flex bg-background dark:bg-[#0B0E14] min-h-screen">
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-[#12161F] border-r border-slate-200 dark:border-white/5 flex flex-col fixed inset-y-0 z-50">
+      <aside className="w-64 bg-white dark:bg-[#12161F] border-r border-brand-dark/5 dark:border-white/5 flex flex-col fixed inset-y-0 z-50">
         <div className="p-6">
-          <div className="text-2xl font-extrabold tracking-tighter text-indigo-900 dark:text-white mb-8">Phoboo</div>
+          <div className="flex items-center justify-between mb-8">
+            <div 
+              onClick={() => setActiveTab('events')}
+              className="text-2xl font-black tracking-tighter text-brand-dark dark:text-white cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              Phoboo
+            </div>
+            <LanguageSwitcher current={language} onChange={setLanguage} isDark={isDark} />
+          </div>
           
           <nav className="space-y-1">
             <SidebarLink 
               icon={<LayoutGrid className="w-4 h-4" />} 
-              label="Events" 
+              label={t.events} 
               active={activeTab === 'events'} 
               onClick={() => setActiveTab('events')} 
             />
             <SidebarLink 
-              icon={<BarChart3 className="w-4 h-4" />} 
-              label="Metrics" 
-              active={activeTab === 'metrics'} 
-              onClick={() => setActiveTab('metrics')} 
-            />
-            <SidebarLink 
               icon={<CalendarIcon className="w-4 h-4" />} 
-              label="Calendar" 
+              label={t.calendar} 
               active={activeTab === 'calendar'} 
               onClick={() => setActiveTab('calendar')} 
             />
             <SidebarLink 
               icon={<Info className="w-4 h-4" />} 
-              label="About" 
+              label={t.about} 
               active={activeTab === 'about'} 
               onClick={() => setActiveTab('about')} 
             />
@@ -1212,14 +1316,8 @@ function Dashboard({ activeTab, setActiveTab, onLogout, isDark, setIsDark, onSel
 
         <div className="mt-auto p-6 space-y-1">
           <SidebarLink 
-            icon={<User className="w-4 h-4" />} 
-            label="Profile" 
-            active={activeTab === 'profile'} 
-            onClick={() => setActiveTab('profile')} 
-          />
-          <SidebarLink 
             icon={<MessageSquare className="w-4 h-4" />} 
-            label="Contact" 
+            label={t.contact} 
             active={activeTab === 'contact'} 
             onClick={() => setActiveTab('contact')} 
           />
@@ -1228,21 +1326,34 @@ function Dashboard({ activeTab, setActiveTab, onLogout, isDark, setIsDark, onSel
             className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all"
           >
             <LogOut className="w-4 h-4" />
-            Sign Out
+            {t.signOut}
           </button>
         </div>
 
         <div className="p-6 border-t border-slate-200 dark:border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-xl uppercase">
-              F
+          <div 
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center gap-3 cursor-pointer p-2 rounded-xl transition-all hover:bg-slate-50 dark:hover:bg-white/5 ${activeTab === 'profile' ? 'bg-slate-50 dark:bg-white/5 ring-1 ring-primary/20' : ''}`}
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-xl uppercase overflow-hidden">
+              {userProfile.photo ? (
+                <img src={userProfile.photo} alt={userProfile.name} className="w-full h-full object-cover" />
+              ) : (
+                userProfile.name[0]
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-800 dark:text-white truncate">Fuad Ibrahimov</p>
-              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Free Plan</p>
+              <p className="text-sm font-bold text-brand-dark dark:text-white truncate">{userProfile.name} {userProfile.surname}</p>
+              <p className="text-[10px] font-black text-primary uppercase tracking-widest">{t.freePlan}</p>
             </div>
-            <button onClick={() => setIsDark(!isDark)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-all">
-              {isDark ? <Sun className="w-4 h-4 text-white" /> : <Moon className="w-4 h-4 text-slate-600" />}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDark(!isDark);
+              }} 
+              className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-all"
+            >
+              {isDark ? <Sun className="w-4 h-4 text-white" /> : <Moon className="w-4 h-4 text-muted" />}
             </button>
           </div>
         </div>
@@ -1267,6 +1378,12 @@ function Dashboard({ activeTab, setActiveTab, onLogout, isDark, setIsDark, onSel
               events={events} 
               onSelectEvent={onSelectEvent}
             />
+          ) : activeTab === 'profile' ? (
+            <ProfileTab 
+              profile={userProfile}
+              onUpdate={setUserProfile}
+              isDark={isDark}
+            />
           ) : (
             <motion.div 
               key={activeTab}
@@ -1276,9 +1393,7 @@ function Dashboard({ activeTab, setActiveTab, onLogout, isDark, setIsDark, onSel
               className="h-full flex flex-col items-center justify-center text-center space-y-4"
             >
               <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center text-primary">
-                {activeTab === 'metrics' && <BarChart3 className="w-10 h-10" />}
                 {activeTab === 'about' && <Info className="w-10 h-10" />}
-                {activeTab === 'profile' && <User className="w-10 h-10" />}
                 {activeTab === 'contact' && <MessageSquare className="w-10 h-10" />}
               </div>
               <h2 className="text-2xl font-black text-indigo-950 dark:text-white capitalize">{activeTab} Page</h2>
@@ -1310,6 +1425,7 @@ function SidebarLink({ icon, label, active, onClick }: { icon: ReactNode, label:
 }
 
 function EventActionsDropdown({ onEdit, onDelete, isDark, openDirection = 'up' }: { onEdit: () => void, onDelete: () => void, isDark: boolean, openDirection?: 'up' | 'down' }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -1359,7 +1475,7 @@ function EventActionsDropdown({ onEdit, onDelete, isDark, openDirection = 'up' }
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isDark ? 'text-slate-300 hover:bg-white/5 hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'}`}
             >
               <Settings className="w-4 h-4 text-primary" />
-              Edit Event
+              {t.editEvent}
             </button>
             <button 
               onClick={(e) => {
@@ -1370,7 +1486,7 @@ function EventActionsDropdown({ onEdit, onDelete, isDark, openDirection = 'up' }
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isDark ? 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white'}`}
             >
               <Trash2 className="w-4 h-4" />
-              Delete Event
+              {t.deleteEvent}
             </button>
           </motion.div>
         )}
@@ -1380,6 +1496,7 @@ function EventActionsDropdown({ onEdit, onDelete, isDark, openDirection = 'up' }
 }
 
 function DeleteConfirmationModal({ event, onClose, onConfirm, isDark }: { event: Event, onClose: () => void, onConfirm: () => void, isDark: boolean }) {
+  const { t } = useI18n();
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
@@ -1406,9 +1523,9 @@ function DeleteConfirmationModal({ event, onClose, onConfirm, isDark }: { event:
           <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
             <Trash2 className="w-10 h-10 text-red-500" />
           </div>
-          <h2 className={`text-2xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-indigo-950'}`}>Delete Event?</h2>
+          <h2 className={`text-2xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-indigo-950'}`}>{t.deleteEvent}?</h2>
           <p className="text-slate-500 font-medium leading-relaxed">
-            Are you sure you want to delete <span className="font-bold text-red-500">"{event.title}"</span>? This action cannot be undone and all data will be permanently removed.
+            {t.confirmDelete} <span className="font-bold text-red-500">"{event.title}"</span>? {t.undoNote}
           </p>
         </div>
 
@@ -1422,13 +1539,13 @@ function DeleteConfirmationModal({ event, onClose, onConfirm, isDark }: { event:
                 : 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20 active:scale-95'
             }`}
           >
-            {countdown > 0 ? `Wait ${countdown}s` : 'Delete Permanently'}
+            {countdown > 0 ? `${t.wait} ${countdown}s` : t.deletePermanently}
           </button>
           <button 
             onClick={onClose}
             className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all ${isDark ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-50'}`}
           >
-            Cancel
+            {t.cancel}
           </button>
         </div>
       </motion.div>
@@ -1445,6 +1562,7 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
   onDeleteEvent: (id: string) => void,
   key?: string | number 
 }) {
+  const { t, language } = useI18n();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -1519,8 +1637,10 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-indigo-950 dark:text-white tracking-tighter">My Events</h1>
-          <p className="text-sm text-slate-500 font-medium">{filteredEvents.length} total events</p>
+          <h1 className="text-3xl font-black text-brand-dark dark:text-white tracking-tighter">{t.myEvents}</h1>
+          <p className="text-sm text-slate-500 font-medium">
+            {language === 'az' ? `${t.totalEvents}: ${filteredEvents.length}` : `${filteredEvents.length} ${t.totalEvents}`}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -1543,7 +1663,7 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors" />
             <input 
               type="text" 
-              placeholder="Search an Event..." 
+              placeholder={t.searchEvents} 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-11 pr-4 py-3 bg-white dark:bg-[#12161F] border border-slate-200 dark:border-white/5 rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary outline-none transition-all w-64 dark:text-white"
@@ -1554,13 +1674,13 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
             <select 
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortField)}
-              className="appearance-none pl-4 pr-10 py-3 bg-white dark:bg-[#12161F] border border-slate-200 dark:border-white/5 rounded-xl text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all cursor-pointer"
+              className="appearance-none pl-4 pr-10 py-3 bg-white dark:bg-[#12161F] border border-slate-200 dark:border-white/5 rounded-xl text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all cursor-pointer min-w-[120px]"
             >
-              <option value="createdAt">Date Created</option>
-              <option value="name">Name</option>
-              <option value="eventDate">Event Date</option>
-              <option value="photoCount">Photo Count</option>
-              <option value="storageSize">Storage Size</option>
+              <option value="createdAt" className="bg-white dark:bg-[#12161F]">{t.dateCreated}</option>
+              <option value="name" className="bg-white dark:bg-[#12161F]">{t.name || 'Ad'}</option>
+              <option value="eventDate" className="bg-white dark:bg-[#12161F]">{t.eventDate}</option>
+              <option value="photoCount" className="bg-white dark:bg-[#12161F]">{t.photoCount}</option>
+              <option value="storageSize" className="bg-white dark:bg-[#12161F]">{t.storageSize}</option>
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
@@ -1578,7 +1698,7 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
             className="vibrant-gradient text-white flex items-center gap-2 px-6 py-3 rounded-xl font-bold shadow-xl shadow-primary/20 hover:scale-105 transition-all"
           >
             <Plus className="w-5 h-5" />
-            Create Event
+            {t.createNewEvent}
           </button>
         </div>
       </div>
@@ -1616,7 +1736,7 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
                         : 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
                     }`}>
                       <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                      {event.status}
+                      {event.status === 'Published' ? t.published : t.draft}
                     </span>
                   </div>
                 </div>
@@ -1626,9 +1746,9 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
                     <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 text-xs font-bold mb-1">
                       <CalendarIcon className="w-3.5 h-3.5" />
                       {(() => {
-                        const start = new Date(event.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        const start = formatEventDate(event.eventDate, language, false);
                         if (!event.endDate || event.endDate === event.eventDate) return start;
-                        const end = new Date(event.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        const end = formatEventDate(event.endDate, language, false);
                         return `${start} - ${end}`;
                       })()}
                     </div>
@@ -1640,12 +1760,12 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
                       <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                         <ImageIcon className="w-4 h-4 text-primary" />
                         <span className="text-sm font-bold">{event.photoCount}</span>
-                        <span className="text-[10px] font-black uppercase opacity-60">photos</span>
+                        <span className="text-[10px] font-black uppercase opacity-60">{t.photos}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                         <Folder className="w-4 h-4 text-indigo-500" />
                         <span className="text-sm font-bold">{event.folderCount}</span>
-                        <span className="text-[10px] font-black uppercase opacity-60">folders</span>
+                        <span className="text-[10px] font-black uppercase opacity-60">{t.totalFolders}</span>
                       </div>
                     </div>
                     <EventActionsDropdown 
@@ -1656,7 +1776,7 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
                   </div>
 
                   <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    <span>Storage Used</span>
+                    <span>{t.storageUsed}</span>
                     <span className="text-indigo-500">{formatSize(event.storageSize)}</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
@@ -1681,29 +1801,29 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-white/5">
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Event</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">{t.event}</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">
                       <div className="flex items-center gap-2">
                         <ImageIcon className="w-3.5 h-3.5" />
-                        Photos
+                        {t.photos}
                       </div>
                     </th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">
                       <div className="flex items-center gap-2">
                         <Search className="w-3.5 h-3.5" />
-                        Face Searches
+                        {t.faceSearches}
                       </div>
                     </th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">
                       <div className="flex items-center gap-2">
                         <Users className="w-3.5 h-3.5" />
-                        Registrations
+                        {t.registrations}
                       </div>
                     </th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">From Date</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">To Date</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Actions</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">{t.status}</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">{t.fromDate}</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">{t.toDate}</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">{t.actions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-white/5">
@@ -1716,7 +1836,7 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
                       <td className="px-6 py-5">
                         <div>
                           <p className="text-sm font-bold text-indigo-950 dark:text-white group-hover:text-primary transition-colors">{event.title}</p>
-                          <p className="text-[10px] font-mono text-slate-400">{event.id}</p>
+                          <p className="text-[10px] font-mono text-slate-400">{t.eventIdLabel} • {event.id}</p>
                         </div>
                       </td>
                       <td className="px-6 py-5">
@@ -1743,14 +1863,14 @@ function EventsView({ onSelectEvent, events, onCreateClick, isDark, onUpdateEven
                             : 'bg-slate-100 dark:bg-white/5 text-slate-500 border border-slate-200 dark:border-white/10'
                         }`}>
                           {event.status === 'Draft' && <Edit3 className="w-3 h-3" />}
-                          {event.status}
+                          {event.status === 'Published' ? t.published : t.draft}
                         </div>
                       </td>
                       <td className="px-6 py-5 text-sm font-medium text-slate-500 dark:text-slate-400 text-center">
-                        {new Date(event.eventDate).toLocaleDateString('en-GB')}
+                        {formatEventDate(event.eventDate, language, false)}
                       </td>
                       <td className="px-6 py-5 text-sm font-medium text-slate-500 dark:text-slate-400 text-center">
-                        {event.endDate && event.endDate !== event.eventDate ? new Date(event.endDate).toLocaleDateString('en-GB') : '-'}
+                        {event.endDate && event.endDate !== event.eventDate ? formatEventDate(event.endDate, language, false) : '-'}
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center justify-center">
@@ -1844,6 +1964,7 @@ const MOCK_PHOTOS: Photo[] = [
 ];
 
 function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, isDark }: { isOpen: boolean, title: string, message: string, onConfirm: () => void, onCancel: () => void, isDark: boolean }) {
+  const { t } = useI18n();
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -1871,10 +1992,10 @@ function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, isDark }: {
         
         <div className="flex gap-3 mt-8">
           <button onClick={onCancel} className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isDark ? 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-            Cancel
+            {t.cancel}
           </button>
           <button onClick={onConfirm} className="flex-1 py-4 rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20">
-            Confirm
+            {t.confirm}
           </button>
         </div>
       </motion.div>
@@ -2159,6 +2280,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
   events: Event[],
   onUpdateEvent: (event: Event) => void
 }) {
+  const { t } = useI18n();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -2188,6 +2310,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
   const [filter, setFilter] = useState<'all' | 'visible' | 'hidden'>('all');
   const [isFoldersOpen, setIsFoldersOpen] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'general' | 'share' | 'design'>('general');
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
 
@@ -2306,9 +2429,9 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
     setSelectedPhotoIds(new Set());
     
     if (processedCount > 0) {
-      setToast({ message: `Successfully oriented ${processedCount} photos!`, type: 'success' });
+      setToast({ message: t.successOriented.replace('{count}', processedCount.toString()), type: 'success' });
     } else {
-      setToast({ message: 'No photos needed orientation fixing.', type: 'info' });
+      setToast({ message: t.noPhotosNeedRotate, type: 'info' });
     }
   };
 
@@ -2419,10 +2542,10 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
     <div className={`flex flex-col h-screen transition-colors duration-300 ${isDark ? 'bg-[#0B0E14] text-white' : 'bg-slate-50 text-indigo-950'}`}>
       <ConfirmModal 
         isOpen={showRotateConfirm}
-        title="Smart Auto Rotate"
+        title={t.smartAutoRotate}
         message={selectedPhotoIds.size > 0 
-          ? `Do you want to fix the orientation of the ${selectedPhotoIds.size} selected photos? This will permanently adjust them to their natural position.`
-          : "All photos in this event will be automatically oriented based on their camera metadata. This helps ensure people look natural. Proceed?"
+          ? t.confirmAutoRotateSelected.replace('{count}', selectedPhotoIds.size.toString())
+          : t.confirmAutoRotateAll
         }
         onConfirm={executeSmartRotate}
         onCancel={() => setShowRotateConfirm(false)}
@@ -2435,6 +2558,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
         {isSettingsOpen && (
           <EventSettingsModal 
             event={event}
+            initialTab={settingsTab}
             onClose={() => setIsSettingsOpen(false)}
             onSave={(updated) => {
               onUpdateEvent(updated);
@@ -2455,7 +2579,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? 'text-slate-500 group-focus-within:text-primary' : 'text-slate-400 group-focus-within:text-primary'}`} />
             <input 
               type="text" 
-              placeholder="Search a file" 
+              placeholder={t.searchFile} 
               className={`pl-11 pr-4 py-2 border rounded-lg text-sm font-medium focus:ring-1 focus:ring-primary outline-none transition-all w-64 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-indigo-950'}`}
             />
           </div>
@@ -2469,12 +2593,21 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
             {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
           <button 
-            onClick={() => setIsSettingsOpen(true)}
+            onClick={() => {
+              setSettingsTab('general');
+              setIsSettingsOpen(true);
+            }}
             className={`p-2 rounded-lg transition-all ${isDark ? 'text-slate-400 hover:text-primary hover:bg-white/5' : 'text-slate-400 hover:text-primary hover:bg-slate-100'}`}
           >
             <Settings className="w-5 h-5" />
           </button>
-          <button className="p-2 hover:bg-white/5 rounded-lg transition-all text-slate-400">
+          <button 
+            onClick={() => {
+              setSettingsTab('share');
+              setIsSettingsOpen(true);
+            }}
+            className="p-2 hover:bg-white/5 rounded-lg transition-all text-slate-400 hover:text-primary"
+          >
             <Share2 className="w-5 h-5" />
           </button>
           <PhotoUploader 
@@ -2490,7 +2623,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
             }} 
           />
           <button className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg hover:scale-105 active:scale-95">
-            Publish
+            {t.publish}
           </button>
         </div>
       </header>
@@ -2524,7 +2657,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
                 ) : (
                   <>
                     <ImageIcon className="w-10 h-10 mb-2 group-hover:text-primary transition-colors" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-center px-4">Set Cover Image</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-center px-4">{t.setCoverImage}</span>
                   </>
                 )}
               </div>
@@ -2541,17 +2674,17 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
             <div className={`grid grid-cols-2 gap-4 py-4 border-y ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
               <div className="text-center">
                 <p className={`text-xl font-black ${isDark ? 'text-white' : 'text-indigo-950'}`}>{event.photoCount}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Photos</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t.photos}</p>
               </div>
               <div className="text-center">
                 <p className={`text-xl font-black ${isDark ? 'text-white' : 'text-indigo-950'}`}>{event.folderCount}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Folders</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t.totalFolders}</p>
               </div>
             </div>
 
             <button className={`w-full py-3 border rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all ${isDark ? 'border-white/10 hover:bg-white/5 text-white' : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
               <Plus className="w-4 h-4" />
-              Add Folder
+              {t.addFolder}
             </button>
 
             {/* Folders List */}
@@ -2562,7 +2695,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
               >
                 <div className={`flex items-center gap-2 text-sm font-bold uppercase tracking-widest transition-colors ${isDark ? 'text-slate-400 group-hover:text-white' : 'text-slate-500 group-hover:text-indigo-950'}`}>
                   <Folder className="w-4 h-4" />
-                  Folders
+                  {t.totalFolders}
                 </div>
                 <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isFoldersOpen ? '' : '-rotate-90'}`} />
               </button>
@@ -2578,7 +2711,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
                     <div className={`flex items-center justify-between p-3 rounded-xl border ${isDark ? 'bg-primary/20 text-white border-primary/30' : 'bg-primary/10 text-primary border-primary/20'}`}>
                       <div className="flex items-center gap-3">
                         <div className={`w-1 h-6 rounded-full ${isDark ? 'bg-primary' : 'bg-primary'}`} />
-                        <span className="text-sm font-black">Highlights</span>
+                        <span className="text-sm font-black">{t.highlights}</span>
                       </div>
                       <MoreVertical className={`w-4 h-4 ${isDark ? 'text-white/60' : 'text-primary/60'}`} />
                     </div>
@@ -2601,7 +2734,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
                     onClick={() => setFilter(f)}
                     className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-primary text-white shadow-lg shadow-primary/20' : (isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700')}`}
                   >
-                    {f === 'all' ? 'Showing: All' : f}
+                    {f === 'all' ? t.showingAll : t[f]}
                   </button>
                 ))}
               </div>
@@ -2615,12 +2748,12 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
                   <RotateCw className={`w-4 h-4 text-primary ${isRotating ? 'animate-spin' : ''}`} />
                   {isRotating 
                     ? `Processing ${rotationProgress?.current}/${rotationProgress?.total}...` 
-                    : 'Smart Auto Rotate'}
+                    : t.smartAutoRotate}
                 </button>
                 <div className="relative group">
                   <select className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-sm font-bold focus:ring-1 focus:ring-primary outline-none transition-all cursor-pointer ${isDark ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>
-                    <option>Oldest first</option>
-                    <option>Newest first</option>
+                    <option>{t.oldestFirst}</option>
+                    <option>{t.newestFirst}</option>
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
                 </div>
@@ -2637,14 +2770,14 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
                         <Monitor className={`w-48 h-48 ${isDark ? 'text-indigo-900/50' : 'text-slate-200'}`} />
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
                           <CloudUpload className="w-16 h-16 text-primary mb-4" />
-                          <p className={`text-2xl font-black ${isDark ? 'text-white' : 'text-indigo-950'}`}>Drag & Drop</p>
+                          <p className={`text-2xl font-black ${isDark ? 'text-white' : 'text-indigo-950'}`}>{t.dragAndDrop}</p>
                         </div>
                      </div>
                   </div>
                 </div>
                 <button className="flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-black text-lg shadow-2xl shadow-primary/40 hover:scale-105 transition-all">
                   <CloudUpload className="w-6 h-6" />
-                  Upload Images
+                  {t.uploadImages}
                 </button>
               </div>
             ) : (
@@ -2711,6 +2844,7 @@ function PhotoCard({ photo, isSelected, onSelect, onPreview, onHide, onUnhide, o
   isDark: boolean,
   key?: string | number
 }) {
+  const { t } = useI18n();
   const [showOptions, setShowOptions] = useState(false);
 
   const displayUrl = photo.variants?.thumbnail || photo.url;
@@ -2757,17 +2891,17 @@ function PhotoCard({ photo, isSelected, onSelect, onPreview, onHide, onUnhide, o
 
       {/* Overlay controls - top right icons */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-        <PhotoActionButton icon={photo.isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} label={photo.isHidden ? "Unhide" : "Hide"} onClick={photo.isHidden ? onUnhide : onHide} />
-        <PhotoActionButton icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={onDelete} />
-        <PhotoActionButton icon={<Download className="w-4 h-4" />} label="Download" onClick={() => {}} />
+        <PhotoActionButton icon={photo.isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} label={photo.isHidden ? t.unhide : t.hide} onClick={photo.isHidden ? onUnhide : onHide} />
+        <PhotoActionButton icon={<Trash2 className="w-4 h-4" />} label={t.delete} onClick={onDelete} />
+        <PhotoActionButton icon={<Download className="w-4 h-4" />} label={t.download} onClick={() => {}} />
         
         <div className="relative">
           <PhotoActionButton 
             icon={<MoreHorizontal className="w-4 h-4" />} 
-            label="More Options" 
+            label={t.moreOptions} 
             onClick={() => setShowOptions(!showOptions)} 
           />
-                  <AnimatePresence>
+          <AnimatePresence>
             {showOptions && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9, y: 10 }}
@@ -2775,9 +2909,9 @@ function PhotoCard({ photo, isSelected, onSelect, onPreview, onHide, onUnhide, o
                 exit={{ opacity: 0, scale: 0.9, y: 10 }}
                 className={`absolute right-0 top-10 w-40 border border-white/10 rounded-xl shadow-2xl p-2 z-50 backdrop-blur-xl ${isDark ? 'bg-[#1A1F29] border-white/10' : 'bg-white border-slate-200'}`}
               >
-                <DropdownButton icon={<ImagePlus className="w-4 h-4" />} label="Set Cover" onClick={() => { onSetCover(); setShowOptions(false); }} isDark={isDark} />
-                <DropdownButton icon={<FolderSymlink className="w-4 h-4" />} label="Move" onClick={() => setShowOptions(false)} isDark={isDark} />
-                <DropdownButton icon={<RotateCw className="w-4 h-4" />} label="Rotate" onClick={() => { onRotate(); setShowOptions(false); }} isDark={isDark} />
+                <DropdownButton icon={<ImagePlus className="w-4 h-4" />} label={t.setCover} onClick={() => { onSetCover(); setShowOptions(false); }} isDark={isDark} />
+                <DropdownButton icon={<FolderSymlink className="w-4 h-4" />} label={t.move} onClick={() => setShowOptions(false)} isDark={isDark} />
+                <DropdownButton icon={<RotateCw className="w-4 h-4" />} label={t.rotate} onClick={() => { onRotate(); setShowOptions(false); }} isDark={isDark} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -2849,6 +2983,7 @@ function BatchActionBar({ count, onSelectAll, onHide, onUnhide, onDelete, onClos
   onClose: () => void,
   isDark: boolean
 }) {
+  const { t } = useI18n();
   return (
     <motion.div 
       initial={{ y: 100, opacity: 0 }}
@@ -2858,17 +2993,17 @@ function BatchActionBar({ count, onSelectAll, onHide, onUnhide, onDelete, onClos
     >
       <div className={`border rounded-2xl shadow-2xl p-4 flex items-center justify-between backdrop-blur-xl ${isDark ? 'bg-[#1A1F29] border-white/10 text-white' : 'bg-white border-slate-200 text-indigo-950'}`}>
         <div className="flex items-center gap-6">
-          <p className="text-sm font-black whitespace-nowrap">{count} Images selected</p>
+          <p className="text-sm font-black whitespace-nowrap">{count} {t.imagesSelected}</p>
           <div className={`w-px h-6 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
         </div>
 
         <div className="flex items-center gap-2">
-          <BatchButton icon={<ChevronDown className="w-4 h-4" />} label="Select All" onClick={onSelectAll} />
-          <BatchButton icon={<EyeOff className="w-4 h-4" />} label="Hide" onClick={onHide} />
-          <BatchButton icon={<Eye className="w-4 h-4" />} label="Unhide" onClick={onUnhide} />
-          <BatchButton icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={onDelete} />
-          <BatchButton icon={<Download className="w-4 h-4" />} label="Download" onClick={() => {}} />
-          <BatchButton icon={<FolderSymlink className="w-4 h-4" />} label="Move" onClick={() => {}} />
+          <BatchButton icon={<ChevronDown className="w-4 h-4" />} label={t.selectAll} onClick={onSelectAll} />
+          <BatchButton icon={<EyeOff className="w-4 h-4" />} label={t.hide} onClick={onHide} />
+          <BatchButton icon={<Eye className="w-4 h-4" />} label={t.unhide} onClick={onUnhide} />
+          <BatchButton icon={<Trash2 className="w-4 h-4" />} label={t.delete} onClick={onDelete} />
+          <BatchButton icon={<Download className="w-4 h-4" />} label={t.download} onClick={() => {}} />
+          <BatchButton icon={<FolderSymlink className="w-4 h-4" />} label={t.move} onClick={() => {}} />
         </div>
 
         <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg ml-2 text-slate-500">
@@ -2898,6 +3033,7 @@ function PhotoPreview({ photos, currentIndex, onClose, onIndexChange, onRotate }
   onIndexChange: (idx: number) => void,
   onRotate?: () => void
 }) {
+  const { t } = useI18n();
   const currentPhoto = photos[currentIndex];
   // Track loading status of the high-res image
   const [isMainLoaded, setIsMainLoaded] = useState(false);
@@ -2995,26 +3131,26 @@ function PhotoPreview({ photos, currentIndex, onClose, onIndexChange, onRotate }
             <X className="w-6 h-6" />
           </button>
           <div className="flex flex-col">
-            <span className="text-xs font-black tracking-[0.3em] text-primary uppercase">Photo details</span>
-            <span className="text-sm font-bold text-white/90">{currentIndex + 1} of {photos.length}</span>
+            <span className="text-xs font-black tracking-[0.3em] text-primary uppercase">{t.photoDetails}</span>
+            <span className="text-sm font-bold text-white/90">{currentIndex + 1} {t.of} {photos.length}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <PhotoActionButton icon={<Download className="w-4 h-4" />} label="Download" onClick={() => {
+          <PhotoActionButton icon={<Download className="w-4 h-4" />} label={t.download} onClick={() => {
             const link = document.createElement('a');
             link.href = currentPhoto.variants?.original || currentPhoto.url;
             link.download = currentPhoto.filename;
             link.click();
           }} />
-          <PhotoActionButton icon={<Share2 className="w-4 h-4" />} label="Share" onClick={() => {}} />
+          <PhotoActionButton icon={<Share2 className="w-4 h-4" />} label={t.share} onClick={() => {}} />
           <div className="w-px h-6 bg-white/10 mx-2" />
           <PhotoActionButton 
             icon={<Maximize2 className="w-4 h-4" />} 
-            label="Full Resolution" 
+            label={t.fullResolution} 
             onClick={() => setShowOriginal(true)} 
           />
-          {onRotate && <PhotoActionButton icon={<RotateCw className="w-4 h-4" />} label="Rotate" onClick={onRotate} />}
+          {onRotate && <PhotoActionButton icon={<RotateCw className="w-4 h-4" />} label={t.rotate} onClick={onRotate} />}
         </div>
       </div>
 
@@ -3149,75 +3285,76 @@ function PhotoPreview({ photos, currentIndex, onClose, onIndexChange, onRotate }
   );
 }
 function PricingPage() {
+  const { t } = useI18n();
   const [isYearly, setIsYearly] = useState(true);
 
   const plans = [
     {
-      name: "Free",
+      name: t.free,
       price: 0,
-      desc: "Try core features for free",
+      desc: t.tryCoreFeatures,
       features: [
-        "Apple Image Format (.HEIC) Support",
-        "Unlimited email notifications",
-        "2 events",
-        "Unlimited face search",
-        "15 MB photo upload",
-        "10 GB storage",
-        "Uncompressed Photos"
+        t.heicSupport,
+        t.unlimitedEmail,
+        t.twoEvents,
+        t.unlimitedFaceSearch,
+        t.photoUpload15,
+        t.storage10,
+        t.uncompressedPhotos
       ],
-      button: "Get Started",
+      button: t.getStarted,
       highlight: false
     },
     {
-      name: "Starter",
+      name: t.starter,
       price: isYearly ? 19 : 29,
       originalPrice: isYearly ? 49 : null,
-      desc: "Perfect for beginners",
+      desc: t.perfectForBeginners,
       features: [
-        "Unlimited email notifications",
-        "Unlimited events",
-        "Unlimited face search",
-        "50 MB photo upload",
-        "125 GB storage",
-        "Uncompressed Photos",
-        "Apple Image Format (.HEIC) Support"
+        t.unlimitedEmail,
+        t.unlimitedEvents,
+        t.unlimitedFaceSearch,
+        t.photoUpload50,
+        t.storage125,
+        t.uncompressedPhotos,
+        t.heicSupport
       ],
-      button: "Buy Now",
+      button: t.buyNow,
       highlight: false
     },
     {
-      name: "Pro",
+      name: t.pro,
       price: isYearly ? 49 : 69,
       originalPrice: isYearly ? 99 : null,
-      desc: "Most popular choice",
+      desc: t.mostPopularChoice,
       features: [
-        "Unlimited email notifications",
-        "Unlimited events",
-        "Unlimited face search",
-        "50 MB photo upload",
-        "500 GB storage",
-        "Uncompressed Photos",
-        "Apple Image Format (.HEIC) Support"
+        t.unlimitedEmail,
+        t.unlimitedEvents,
+        t.unlimitedFaceSearch,
+        t.photoUpload50,
+        t.storage500,
+        t.uncompressedPhotos,
+        t.heicSupport
       ],
-      button: "Buy Now",
+      button: t.buyNow,
       highlight: true,
-      badge: "Most Popular"
+      badge: t.mostPopular
     },
     {
-      name: "Pro Plus",
+      name: t.proPlus,
       price: isYearly ? 89 : 119,
       originalPrice: isYearly ? 169 : null,
-      desc: "For full-scale operations",
+      desc: t.forFullScale,
       features: [
-        "Apple Image Format (.HEIC) Support",
-        "Unlimited email notifications",
-        "Unlimited events",
-        "Unlimited face search",
-        "50 MB photo upload",
-        "1000 GB storage",
-        "Uncompressed Photos"
+        t.heicSupport,
+        t.unlimitedEmail,
+        t.unlimitedEvents,
+        t.unlimitedFaceSearch,
+        t.photoUpload50,
+        t.storage1000,
+        t.uncompressedPhotos
       ],
-      button: "Buy Now",
+      button: t.buyNow,
       highlight: false
     }
   ];
@@ -3235,7 +3372,7 @@ function PricingPage() {
           animate={{ y: 0, opacity: 1 }}
           className="text-4xl md:text-6xl font-black text-indigo-950 dark:text-white mb-6 tracking-tighter"
         >
-          Pricing & <span className="text-primary italic">Plans</span>
+          {t.pricingTitle} <span className="text-primary italic">{t.plans}</span>
         </motion.h1>
         <motion.p 
           initial={{ y: 20, opacity: 0 }}
@@ -3243,13 +3380,13 @@ function PricingPage() {
           transition={{ delay: 0.1 }}
           className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg font-medium mb-10"
         >
-          We offer simple, transparent pricing designed to scale with your photography business. Compare plans and find your perfect fit.
+          {t.pricingDesc}
         </motion.p>
         
         {/* Toggle */}
         <div className="flex flex-col items-center gap-4">
           <div className="flex items-center gap-4">
-            <span className={`text-sm font-bold ${!isYearly ? 'text-indigo-950 dark:text-white' : 'text-slate-400'}`}>Monthly</span>
+            <span className={`text-sm font-bold ${!isYearly ? 'text-indigo-950 dark:text-white' : 'text-slate-400'}`}>{t.monthly}</span>
             <button 
               onClick={() => setIsYearly(!isYearly)}
               className="w-14 h-7 bg-slate-200 dark:bg-white/10 rounded-full p-1 transition-all relative"
@@ -3259,14 +3396,14 @@ function PricingPage() {
                 className="w-5 h-5 bg-primary rounded-full shadow-lg"
               />
             </button>
-            <span className={`text-sm font-bold ${isYearly ? 'text-indigo-950 dark:text-white' : 'text-slate-400'}`}>Yearly</span>
+            <span className={`text-sm font-bold ${isYearly ? 'text-indigo-950 dark:text-white' : 'text-slate-400'}`}>{t.yearly}</span>
           </div>
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="px-3 py-1 bg-emerald-500/10 text-emerald-500 text-xs font-black rounded-full border border-emerald-500/20"
           >
-            SAVE 50% WITH YEARLY BILLING
+            {t.saveWithYearly}
           </motion.div>
         </div>
       </div>
@@ -3293,19 +3430,19 @@ function PricingPage() {
                 <span className="text-5xl font-black text-indigo-950 dark:text-white tracking-tighter">
                   {plan.price}
                 </span>
-                {plan.price > 0 && <span className="text-slate-500 font-bold">/month</span>}
+                {plan.price > 0 && <span className="text-slate-500 font-bold">{t.perMonth}</span>}
               </div>
               {plan.originalPrice && (
                 <div className="text-sm text-slate-400 font-medium line-through mb-1">
-                  Normally ${plan.originalPrice}
+                  {t.normally} ${plan.originalPrice}
                 </div>
               )}
-              {plan.price > 0 && <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Billed yearly</div>}
+              {plan.price > 0 && <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">{t.billedYearly}</div>}
               <p className="text-slate-400 text-sm font-medium mt-4">{plan.desc}</p>
             </div>
 
             <div className="space-y-4 mb-10 flex-grow">
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">What's Included</div>
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.whatsIncluded}</div>
               {plan.features.map((feature, fIdx) => (
                 <div key={fIdx} className="flex items-start gap-3 group/feat">
                   <div className="w-4 h-4 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5 group-hover/feat:bg-emerald-500/20 transition-colors">
@@ -3325,7 +3462,7 @@ function PricingPage() {
 
       <div className="mt-20 text-center">
         <p className="text-slate-400 font-medium">
-          You can upgrade, downgrade, or cancel anytime — no long-term commitments.
+          {t.cancelAnytime}
         </p>
       </div>
     </motion.main>
@@ -3426,36 +3563,40 @@ function Step({ number, title, desc, illustration, direction }: {
 
 function EventFormIllustration() {
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full relative h-32 flex flex-col justify-center">
       <motion.div 
-        initial={{ opacity: 0, x: -20 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.2 }}
-        className="h-8 w-3/4 bg-white/60 dark:bg-white/10 rounded-lg border border-indigo-100 dark:border-white/5 flex items-center px-3"
+        initial={{ opacity: 0, scale: 0.9 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        className="bg-white/80 dark:bg-white/10 backdrop-blur-md rounded-xl p-4 border border-brand-dark/5 shadow-sm space-y-3"
       >
-        <div className="w-2 h-2 bg-primary/20 rounded-full mr-2" />
-        <div className="h-1.5 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
+        <div className="space-y-2">
+          <div className="h-2 w-1/2 bg-slate-100 dark:bg-white/10 rounded-full" />
+          <div className="h-2 w-full bg-slate-100 dark:bg-white/10 rounded-full opacity-60" />
+        </div>
+        <div className="flex justify-end pt-1">
+          <motion.div 
+            animate={{ 
+              scale: [1, 0.95, 1],
+              backgroundColor: ['#C48F28', '#A67922', '#C48F28']
+            }}
+            transition={{ repeat: Infinity, duration: 2 }}
+            className="h-6 w-16 rounded-lg shadow-md"
+          />
+        </div>
       </motion.div>
-      <motion.div 
-        initial={{ opacity: 0, x: -20 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.3 }}
-        className="h-8 w-full bg-white/60 dark:bg-white/10 rounded-lg border border-indigo-100 dark:border-white/5 flex items-center px-3"
+      
+      {/* Floating success indicator */}
+      <motion.div
+        animate={{ 
+          y: [-10, -20, -10],
+          opacity: [0, 1, 0]
+        }}
+        transition={{ repeat: Infinity, duration: 2, delay: 1 }}
+        className="absolute top-0 right-0 bg-green-500 text-white p-1 rounded-full shadow-lg"
       >
-        <div className="w-2 h-2 bg-primary/20 rounded-full mr-2" />
-        <div className="h-1.5 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
-      </motion.div>
-      <motion.div 
-        initial={{ opacity: 0, x: -20 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.4 }}
-        className="h-12 w-full vibrant-gradient rounded-lg flex items-center justify-center shadow-lg"
-      >
-        <motion.div 
-          animate={{ scale: [1, 1.05, 1] }} 
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="h-2 w-24 bg-white/30 rounded" 
-        />
+        <div className="w-3 h-3 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
       </motion.div>
     </div>
   );
@@ -3463,34 +3604,42 @@ function EventFormIllustration() {
 
 function UploadIllustration() {
   return (
-    <div className="w-full flex flex-col items-center">
-      <div className="w-full aspect-video rounded-xl bg-white/40 dark:bg-white/5 border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 flex flex-col items-center justify-center mb-4 relative overflow-hidden">
+    <div className="w-full relative h-32 flex flex-col items-center justify-center">
+      <div className="w-full h-24 border-2 border-dashed border-primary/20 rounded-2xl flex items-center justify-center relative overflow-hidden bg-white/5">
         <motion.div
-          animate={{ y: [0, -5, 0] }}
-          transition={{ repeat: Infinity, duration: 2 }}
+           animate={{ y: [0, -4, 0] }}
+           transition={{ repeat: Infinity, duration: 2 }}
+           className="z-10"
         >
-          <CloudUpload className="w-8 h-8 text-primary/40" />
+          <ArrowUp className="w-6 h-6 text-primary" />
         </motion.div>
         
-        {/* Animated file icons */}
+        {/* Sliding photo cards */}
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ 
+              opacity: [0, 1, 0],
+              x: [-40, 0, 40],
+              y: [0, -10, 0]
+            }}
+            transition={{ 
+              repeat: Infinity, 
+              duration: 3, 
+              delay: i * 0.8,
+              ease: "easeInOut" 
+            }}
+            className="absolute w-8 h-10 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-brand-dark/5"
+          />
+        ))}
+
         <motion.div 
-          animate={{ y: [20, -40], opacity: [0, 1, 0] }}
-          transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-          className="absolute bottom-0 w-6 h-8 bg-white shadow-sm rounded border border-indigo-50"
-        />
-      </div>
-      
-      <div className="w-full h-2 bg-indigo-50 dark:bg-indigo-950/50 rounded-full overflow-hidden">
-        <motion.div 
+          className="absolute bottom-0 left-0 h-1 bg-primary"
           initial={{ width: 0 }}
-          whileInView={{ width: "100%" }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          className="h-full bg-primary"
+          animate={{ width: "100%" }}
+          transition={{ repeat: Infinity, duration: 2.4, ease: "linear" }}
         />
-      </div>
-      <div className="flex justify-between w-full mt-2">
-        <div className="h-1 w-8 bg-slate-200 dark:bg-slate-700 rounded" />
-        <div className="h-1 w-12 bg-slate-200 dark:bg-slate-700 rounded" />
       </div>
     </div>
   );
@@ -3498,41 +3647,38 @@ function UploadIllustration() {
 
 function DiscoveryIllustration() {
   return (
-    <div className="w-full relative">
-      <div className="grid grid-cols-2 gap-2">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="relative aspect-square rounded-lg bg-white dark:bg-slate-900 shadow-sm overflow-hidden border border-indigo-50 dark:border-white/5">
-            <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800" />
-            <div className="absolute inset-x-2 bottom-2 space-y-1">
-              <div className="h-1 w-full bg-slate-200 dark:bg-slate-700 rounded" />
-              <div className="h-1 w-2/3 bg-slate-200 dark:bg-slate-700 rounded" />
-            </div>
-            
-            {/* AI Highlight Boxes */}
-            {i === 2 && (
-              <motion.div 
-                animate={{ opacity: [0.4, 1, 0.4] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-                className="absolute inset-0 border-2 border-primary/60 m-2 rounded shadow-[0_0_10px_rgba(139,92,246,0.3)] flex items-center justify-center"
-              >
-                <div className="w-1 h-1 bg-primary rounded-full absolute -top-0.5 -left-0.5" />
-                <div className="w-1 h-1 bg-primary rounded-full absolute -top-0.5 -right-0.5" />
-                <div className="w-1 h-1 bg-primary rounded-full absolute -bottom-0.5 -left-0.5" />
-                <div className="w-1 h-1 bg-primary rounded-full absolute -bottom-0.5 -right-0.5" />
-              </motion.div>
-            )}
-          </div>
-        ))}
+    <div className="w-full relative h-32 flex items-center justify-center">
+      <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center relative overflow-hidden group">
+        <ScanFace className="w-10 h-10 text-primary" />
+        
+        {/* Scanning line */}
+        <motion.div 
+          animate={{ y: [-40, 40] }}
+          transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+          className="absolute w-full h-[1px] bg-primary/60 shadow-[0_0_8px_rgba(196,143,40,0.8)]"
+        />
       </div>
-      
-      {/* QR Badge */}
-      <motion.div 
-        animate={{ scale: [1, 1.1, 1], rotate: [0, 5, 0] }}
-        transition={{ repeat: Infinity, duration: 4 }}
-        className="absolute -bottom-2 -right-2 w-16 h-16 bg-white dark:bg-slate-900 p-2 rounded-xl shadow-2xl border border-indigo-50 dark:border-white/5 z-20"
-      >
-        <QrCode className="w-full h-full text-indigo-900 dark:text-white" />
-      </motion.div>
+
+      {/* Popping photo results */}
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ 
+            opacity: [0, 1, 0],
+            scale: [0, 1, 0],
+            x: [0, Math.cos(angle * Math.PI / 180) * 45],
+            y: [0, Math.sin(angle * Math.PI / 180) * 45]
+          }}
+          transition={{ 
+            repeat: Infinity, 
+            duration: 2.5, 
+            delay: i * 0.2,
+            ease: "backOut" 
+          }}
+          className="absolute w-6 h-6 rounded-md bg-white dark:bg-slate-800 shadow-sm border border-brand-dark/5"
+        />
+      ))}
     </div>
   );
 }
@@ -3565,8 +3711,9 @@ const ALBUM_THEMES = [
   { id: 'noir', name: 'Midnight Noir', bg: '#0D1117', text: '#FFFFFF', accent: '#8B5CF6', font: 'sans' as const },
 ];
 
-function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose: () => void, onSave: (event: Event) => void }) {
-  const [activeTab, setActiveTab] = useState<'general' | 'share' | 'design'>('general');
+function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: { event: Event, onClose: () => void, onSave: (event: Event) => void, initialTab?: 'general' | 'share' | 'design' }) {
+  const { t } = useI18n();
+  const [activeTab, setActiveTab] = useState<'general' | 'share' | 'design'>(initialTab);
   const [editedEvent, setEditedEvent] = useState<Event>(() => {
     const generateToken = () => Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
     const existing = event.shareSettings;
@@ -3596,10 +3743,30 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
   const nameLimit = 40;
   const descLimit = 255;
   const isNameExceeded = editedEvent.title.length > nameLimit;
-  // Note: we'll assume description exists in a future iteration or use a local state if not added to Event type yet.
-  // For now, let's just focus on the fields the user requested: name, description, date.
   const [description, setDescription] = useState(''); 
   const isDescExceeded = description.length > descLimit;
+
+  const getThemeName = (id: string) => {
+    switch (id) {
+      case 'classic-cream': return t.themeClassicCream;
+      case 'almond-white': return t.themeAlmondWhite;
+      case 'modern-dark': return t.themeModernDark;
+      case 'ethereal-blue': return t.themeEtherealBlue;
+      case 'royal-gold': return t.themeRoyalGold;
+      case 'velvet-night': return t.themeVelvetNight;
+      default: return id;
+    }
+  };
+
+  const getCoverStyleName = (id: string) => {
+    switch (id) {
+      case 'oval': return t.coverStyleClassicOval;
+      case 'pill': return t.coverStyleElegantPill;
+      case 'circle': return t.coverStyleSoftCircle;
+      case 'rect': return t.coverStyleBrutalistRect;
+      default: return id;
+    }
+  };
 
   const handleSave = () => {
     if (isNameExceeded || isDescExceeded) return;
@@ -3641,13 +3808,15 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
     >
       <motion.div 
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        className="w-full max-w-2xl bg-[#0D1117] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl bg-[#0D1117] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] cursor-default"
       >
         {/* Header Tabs */}
         <div className="flex border-b border-white/5 p-2 bg-[#12161F]/50">
@@ -3655,19 +3824,19 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
             onClick={() => setActiveTab('general')}
             className={`flex-1 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all rounded-2xl ${activeTab === 'general' ? 'text-white bg-white/5 shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}
           >
-            General Settings
+            {t.generalSettings}
           </button>
           <button 
             onClick={() => setActiveTab('share')}
             className={`flex-1 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all rounded-2xl ${activeTab === 'share' ? 'text-white bg-white/5 shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}
           >
-            Share Settings
+            {t.shareSettings}
           </button>
           <button 
             onClick={() => setActiveTab('design')}
             className={`flex-1 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all rounded-2xl ${activeTab === 'design' ? 'text-white bg-white/5 shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}
           >
-            Gallery Design
+            {t.galleryDesign}
           </button>
         </div>
 
@@ -3683,34 +3852,34 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
               >
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1">Event Name *</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1">{t.eventNameLabel}</label>
                     <div className="relative">
                       <input 
                         type="text" 
                         value={editedEvent.title}
                         onChange={(e) => setEditedEvent({...editedEvent, title: e.target.value})}
                         className={`w-full px-6 py-4 bg-[#12161F] border rounded-2xl outline-none transition-all font-bold text-lg ${isNameExceeded ? 'border-red-500 ring-2 ring-red-500/20' : 'border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/10'}`}
-                        placeholder="My Awesome Event"
+                        placeholder={t.namePlaceholder}
                       />
-                      {isNameExceeded && <p className="text-[10px] text-red-500 font-bold mt-2 px-1 uppercase tracking-widest">Character limit exceeded</p>}
+                      {isNameExceeded && <p className="text-[10px] text-red-500 font-bold mt-2 px-1 uppercase tracking-widest">{t.characterLimitExceeded}</p>}
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1">Description</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1">{t.descLabel}</label>
                     <textarea 
                       rows={4}
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       className={`w-full px-6 py-4 bg-[#12161F] border rounded-2xl outline-none transition-all font-medium resize-none ${isDescExceeded ? 'border-red-500 ring-2 ring-red-500/20' : 'border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/10'}`}
-                      placeholder="Tell us about your event..."
+                      placeholder={t.descPlaceholder}
                     />
-                    {isDescExceeded && <p className="text-[10px] text-red-500 font-bold px-1 uppercase tracking-widest">Character limit exceeded</p>}
+                    {isDescExceeded && <p className="text-[10px] text-red-500 font-bold px-1 uppercase tracking-widest">{t.characterLimitExceeded}</p>}
                   </div>
 
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1">Start Date</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1">{t.startDateLabel}</label>
                       <div className="relative">
                         <input 
                           type="date"
@@ -3722,7 +3891,7 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1">End Date</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1">{t.endDateLabel}</label>
                       <div className="relative">
                         <input 
                           type="date"
@@ -3745,7 +3914,7 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                 className="space-y-12"
               >
                 <div className="space-y-6">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Album Presets</h3>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.albumPresets}</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {ALBUM_THEMES.map(theme => (
                       <button
@@ -3772,7 +3941,7 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/asfalt-dark.png")' }} />
                            <div className="w-6 h-0.5 relative z-10" style={{ backgroundColor: theme.accent, opacity: 0.5 }} />
                          </div>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-center">{theme.name}</span>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-center">{getThemeName(theme.id)}</span>
                          {editedEvent.galleryDesign?.themeId === theme.id && (
                            <div className="absolute top-1 right-1">
                              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
@@ -3785,13 +3954,13 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                    <div className="space-y-6">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Cover Styles</h3>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.coverStyles}</h3>
                       <div className="grid grid-cols-2 gap-4">
                         {[
-                          { id: 'oval', name: 'Classic Oval', icon: <div className="w-10 h-10 border-2 border-current rounded-[40%] flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
-                          { id: 'pill', name: 'Elegant Pill', icon: <div className="w-10 h-10 border-2 border-current rounded-[3rem] flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
-                          { id: 'circle', name: 'Soft Circle', icon: <div className="w-10 h-10 border-2 border-current rounded-full flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
-                          { id: 'rect', name: 'Brutalist Rect', icon: <div className="w-10 h-10 border-2 border-current rounded-xl flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
+                          { id: 'oval', name: getCoverStyleName('oval'), icon: <div className="w-10 h-10 border-2 border-current rounded-[40%] flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
+                          { id: 'pill', name: getCoverStyleName('pill'), icon: <div className="w-10 h-10 border-2 border-current rounded-[3rem] flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
+                          { id: 'circle', name: getCoverStyleName('circle'), icon: <div className="w-10 h-10 border-2 border-current rounded-full flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
+                          { id: 'rect', name: getCoverStyleName('rect'), icon: <div className="w-10 h-10 border-2 border-current rounded-xl flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
                         ].map(style => (
                           <button
                             key={style.id}
@@ -3814,7 +3983,7 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                    </div>
 
                    <div className="space-y-8">
-                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Live Preview</h3>
+                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.livePreview}</h3>
                      <div 
                        className="aspect-square rounded-[2rem] p-6 flex flex-col items-center justify-center text-center space-y-4 shadow-2xl overflow-hidden relative"
                        style={{ backgroundColor: editedEvent.galleryDesign?.backgroundColor }}
@@ -3854,7 +4023,7 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
               >
                 {/* Access Type */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Access Type</h3>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.accessType}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <button 
                       onClick={() => setAccessType('face_search')}
@@ -3863,7 +4032,7 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${editedEvent.shareSettings?.accessType === 'face_search' ? 'border-primary shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'border-slate-600'}`}>
                         {editedEvent.shareSettings?.accessType === 'face_search' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
                       </div>
-                      <span className="font-bold text-sm tracking-tight opacity-90">Face search access</span>
+                      <span className="font-bold text-sm tracking-tight opacity-90">{t.faceSearchAccess}</span>
                     </button>
                     <button 
                       onClick={() => setAccessType('full')}
@@ -3872,7 +4041,7 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${editedEvent.shareSettings?.accessType === 'full' ? 'border-primary shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'border-slate-600'}`}>
                         {editedEvent.shareSettings?.accessType === 'full' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
                       </div>
-                      <span className="font-bold text-sm tracking-tight opacity-90">Full access</span>
+                      <span className="font-bold text-sm tracking-tight opacity-90">{t.fullAccess}</span>
                     </button>
                   </div>
                 </div>
@@ -3880,11 +4049,11 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                 {/* Links Section */}
                 <div className="space-y-6 pt-6 border-t border-white/5">
                   <div className="space-y-4">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Guest Links</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.guestLinks}</h3>
                     
                     {/* Full Access Link */}
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Full Access Gallery</label>
+                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">{t.fullAccessGallery}</label>
                        <div className="flex gap-2">
                          <div className="flex-1 bg-[#12161F] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-slate-400 flex items-center overflow-hidden">
                            <Globe className="w-3.5 h-3.5 mr-2 shrink-0 text-primary" />
@@ -3916,7 +4085,7 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
 
                     {/* Face Search Only Link */}
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Face Search Access Only</label>
+                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">{t.faceSearchAccessOnly}</label>
                        <div className="flex gap-2">
                          <div className="flex-1 bg-[#12161F] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-slate-400 flex items-center overflow-hidden">
                            <ScanFace className="w-3.5 h-3.5 mr-2 shrink-0 text-secondary" />
@@ -3952,10 +4121,10 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                        <QrCode className="w-16 h-16 text-indigo-950" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-black uppercase tracking-widest text-primary mb-1">Download QR Codes</h4>
-                      <p className="text-xs text-slate-400 font-medium">Print these on table cards or display them at your event venue.</p>
+                      <h4 className="text-sm font-black uppercase tracking-widest text-primary mb-1">{t.downloadQRCodes}</h4>
+                      <p className="text-xs text-slate-400 font-medium">{t.downloadQRDesc}</p>
                       <button className="mt-3 text-xs font-black text-white hover:text-primary transition-colors flex items-center gap-1 uppercase tracking-widest">
-                        Download Kit <ChevronRight className="w-3.5 h-3.5" />
+                        {t.downloadKit} <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -3967,8 +4136,8 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                       <div className="space-y-4">
                          <div className="flex items-center justify-between">
                             <div>
-                               <h3 className="font-bold text-sm">Password Protection</h3>
-                               <p className="text-xs text-slate-500 font-medium mt-1">Protect your gallery with a 4-digit PIN</p>
+                               <h3 className="font-bold text-sm">{t.passwordProtection}</h3>
+                               <p className="text-xs text-slate-500 font-medium mt-1">{t.passwordProtectionDesc}</p>
                             </div>
                             <button 
                               onClick={handleTogglePassword}
@@ -3980,19 +4149,19 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
                       </div>
 
                       <div className="space-y-2">
-                          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Security PIN</h3>
+                          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{t.securityPIN}</h3>
                           <div className="relative group">
                              <input 
-                               readOnly
-                               value={editedEvent.shareSettings?.pin}
-                               className="w-full px-6 py-4 bg-[#12161F] border border-white/10 rounded-2xl text-slate-500 font-mono text-xl pr-20 group-hover:bg-white/[0.07] transition-all"
+                                readOnly
+                                value={editedEvent.shareSettings?.pin}
+                                className="w-full px-6 py-4 bg-[#12161F] border border-white/10 rounded-2xl text-slate-500 font-mono text-xl pr-20 group-hover:bg-white/[0.07] transition-all"
                              />
                              <button 
-                               onClick={() => navigator.clipboard.writeText(editedEvent.shareSettings?.pin || '')}
-                               className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors font-bold text-xs"
+                                onClick={() => navigator.clipboard.writeText(editedEvent.shareSettings?.pin || '')}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors font-bold text-xs"
                              >
                                 <Copy className="w-4 h-4" />
-                                Copy
+                                {t.copy}
                              </button>
                           </div>
                       </div>
@@ -4000,8 +4169,8 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
 
                    <div className="flex items-center justify-between">
                       <div>
-                         <h3 className="font-bold text-sm">Event Registration</h3>
-                         <p className="text-xs text-slate-500 font-medium mt-1">Require guests to register before viewing</p>
+                         <h3 className="font-bold text-sm">{t.eventRegistration}</h3>
+                         <p className="text-xs text-slate-500 font-medium mt-1">{t.eventRegistrationDesc}</p>
                       </div>
                       <button 
                         onClick={handleToggleRegistration}
@@ -4022,13 +4191,13 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
             onClick={onClose}
             className="px-8 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-white font-bold transition-all"
           >
-            Discard Changes
+            {t.discardChanges}
           </button>
           <button 
             onClick={handleSave}
             className="px-8 py-4 bg-primary hover:bg-primary-dark text-white rounded-2xl font-bold shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
-            Save Changes
+            {t.saveChanges}
           </button>
         </div>
       </motion.div>
@@ -4037,6 +4206,7 @@ function EventSettingsModal({ event, onClose, onSave }: { event: Event, onClose:
 }
 
 function CreateEventModal({ onClose, onCreate }: { onClose: () => void, onCreate: (event: Event) => void }) {
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState<'single' | 'multiple'>('single');
@@ -4049,22 +4219,22 @@ function CreateEventModal({ onClose, onCreate }: { onClose: () => void, onCreate
   const isNameExceeded = name.length >= nameLimit;
   const isDescExceeded = description.length >= descLimit;
 
-  // Localized messages (placeholder for future i18n)
+  // Localized messages
   const messages = {
-    nameLimitExceeded: "Character limit exceeded",
-    descLimitExceeded: "Character limit exceeded",
-    createBtn: "Create New Event",
-    modalTitle: "Create Event",
-    nameLabel: "Name *",
-    descLabel: "Description",
-    durationLabel: "Event Duration",
-    dateLabel: "Event Date",
-    startDateLabel: "Start Date",
-    endDateLabel: "End Date",
-    singleDay: "Single Day",
-    multipleDays: "Multiple Days",
-    namePlaceholder: "Event Name",
-    descPlaceholder: "Event Description"
+    nameLimitExceeded: t.characterLimitExceeded,
+    descLimitExceeded: t.characterLimitExceeded,
+    createBtn: t.createNewEvent,
+    modalTitle: t.createNewEvent,
+    nameLabel: t.nameLabel,
+    descLabel: t.descLabel,
+    durationLabel: t.durationLabel,
+    dateLabel: t.dateLabel,
+    startDateLabel: t.startDateLabel,
+    endDateLabel: t.endDateLabel,
+    singleDay: t.singleDay,
+    multipleDays: t.multipleDays,
+    namePlaceholder: t.namePlaceholder,
+    descPlaceholder: t.descPlaceholder
   };
 
   const handleCreate = () => {
@@ -4242,15 +4412,383 @@ function CreateEventModal({ onClose, onCreate }: { onClose: () => void, onCreate
   );
 }
 
+function ProfileTab({ profile, onUpdate, isDark }: { profile: UserProfile, onUpdate: (p: UserProfile) => void, isDark: boolean }) {
+  const { t } = useI18n();
+  const [editedProfile, setEditedProfile] = useState(profile);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    current: '',
+    new: '',
+    confirm: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isPasswordMatch = passwordForm.new === passwordForm.confirm && passwordForm.new !== '';
+  const canSavePassword = editedProfile.authProvider === 'google' 
+    ? isPasswordMatch 
+    : (passwordForm.current !== '' && isPasswordMatch);
+
+  const handleUpdate = (updates: Partial<UserProfile>) => {
+    const updated = { ...editedProfile, ...updates };
+    setEditedProfile(updated);
+    onUpdate(updated);
+  };
+
+  const handleSocialUpdate = (platform: keyof UserProfile['socials'], value: string) => {
+    const updatedSocials = { ...editedProfile.socials, [platform]: value };
+    handleUpdate({ socials: updatedSocials });
+  };
+
+  const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleUpdate({ photo: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex-1 overflow-y-auto p-8"
+    >
+      <div className="max-w-4xl mx-auto space-y-8 pb-12">
+        <div className="flex items-end justify-between">
+          <div>
+            <h1 className="text-4xl font-black text-indigo-950 dark:text-white tracking-tight">{t.publicProfile}</h1>
+            <p className="text-slate-500 mt-1 font-medium">{t.manageProfessionalInfo}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1 space-y-6">
+            <div className={`p-6 rounded-[2.5rem] border ${isDark ? 'bg-[#12161F] border-white/5' : 'bg-white border-slate-200'} shadow-xl shadow-slate-200/50 dark:shadow-none`}>
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="relative group">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/20 bg-slate-100 dark:bg-white/5">
+                    {editedProfile.photo ? (
+                      <img src={editedProfile.photo} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400">
+                        <User className="w-12 h-12" />
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg hover:scale-110 transition-transform"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handlePhotoUpload} 
+                  />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold dark:text-white">{editedProfile.name} {editedProfile.surname}</h2>
+                  <p className="text-sm text-slate-500 font-medium">{editedProfile.email}</p>
+                </div>
+                {editedProfile.photo && (
+                  <button 
+                    onClick={() => handleUpdate({ photo: undefined })}
+                    className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors"
+                  >
+                    {t.deletePhoto}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className={`p-6 rounded-[2.5rem] border ${isDark ? 'bg-[#12161F] border-white/5' : 'bg-white border-slate-200'} shadow-xl shadow-slate-200/50 dark:shadow-none`}>
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4 px-2">{t.security}</h3>
+              <div className="space-y-4">
+                {editedProfile.authProvider === 'google' ? (
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-primary/5 border border-indigo-100 dark:border-primary/10">
+                      <p className="text-sm font-medium text-indigo-900 dark:text-slate-300">
+                        You use Google to sign in. You can set a secondary password for your account.
+                      </p>
+                    </div>
+                    {!isChangingPassword ? (
+                      <button 
+                        onClick={() => setIsChangingPassword(true)}
+                        className="w-full py-3 rounded-xl border border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all"
+                      >
+                        {t.setPassword}
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <input 
+                            type={showPasswords.new ? "text" : "password"} 
+                            placeholder={t.newPassword} 
+                            value={passwordForm.new}
+                            onChange={(e) => setPasswordForm(prev => ({ ...prev, new: e.target.value }))}
+                            className={`w-full px-4 py-3 rounded-xl border ${isDark ? 'bg-black/20 border-white/10 text-white' : 'bg-slate-50 border-slate-200'} focus:ring-2 focus:ring-primary outline-none transition-all pr-12 text-sm placeholder:text-xs`}
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                          >
+                            {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <input 
+                            type="password"
+                            placeholder={t.confirmNewPassword} 
+                            value={passwordForm.confirm}
+                            onChange={(e) => setPasswordForm(prev => ({ ...prev, confirm: e.target.value }))}
+                            className={`w-full px-4 py-3 rounded-xl border ${isDark ? 'bg-black/20 border-white/10 text-white' : 'bg-slate-50 border-slate-200'} focus:ring-2 focus:ring-primary outline-none transition-all text-sm placeholder:text-xs ${passwordForm.confirm && !isPasswordMatch ? 'border-red-500 ring-2 ring-red-500/20' : ''}`}
+                          />
+                        </div>
+                        
+                        {passwordForm.confirm && !isPasswordMatch && (
+                          <p className="text-xs font-bold text-red-500 px-2 flex items-center gap-1">
+                            <Lock className="w-3 h-3" /> {t.passwordsDoNotMatch}
+                          </p>
+                        )}
+
+                        <div className="flex gap-2">
+                          <button 
+                            disabled={!canSavePassword}
+                            onClick={() => {
+                              setIsChangingPassword(false);
+                              setPasswordForm({ current: '', new: '', confirm: '' });
+                            }}
+                            className="flex-1 py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {t.save}
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setIsChangingPassword(false);
+                              setPasswordForm({ current: '', new: '', confirm: '' });
+                            }}
+                            className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-white/5 font-bold dark:text-white transition-all font-bold"
+                          >
+                            {t.cancel}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {!isChangingPassword ? (
+                      <button 
+                        onClick={() => setIsChangingPassword(true)}
+                        className="w-full py-3 rounded-xl border border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all"
+                      >
+                        Change Password
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <input 
+                            type={showPasswords.current ? "text" : "password"} 
+                            placeholder="Current Password" 
+                            value={passwordForm.current}
+                            onChange={(e) => setPasswordForm(prev => ({ ...prev, current: e.target.value }))}
+                            className={`w-full px-4 py-3 rounded-xl border ${isDark ? 'bg-black/20 border-white/10 text-white' : 'bg-slate-50 border-slate-200'} focus:ring-2 focus:ring-primary outline-none transition-all pr-12 text-sm placeholder:text-xs`}
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                          >
+                            {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <input 
+                            type="password" 
+                            placeholder="New Password" 
+                            value={passwordForm.new}
+                            onChange={(e) => setPasswordForm(prev => ({ ...prev, new: e.target.value }))}
+                            className={`w-full px-4 py-3 rounded-xl border ${isDark ? 'bg-black/20 border-white/10 text-white' : 'bg-slate-50 border-slate-200'} focus:ring-2 focus:ring-primary outline-none transition-all text-sm placeholder:text-xs`}
+                          />
+                        </div>
+                        <div className="relative">
+                          <input 
+                            type="password" 
+                            placeholder="Confirm New Password" 
+                            value={passwordForm.confirm}
+                            onChange={(e) => setPasswordForm(prev => ({ ...prev, confirm: e.target.value }))}
+                            className={`w-full px-4 py-3 rounded-xl border ${isDark ? 'bg-black/20 border-white/10 text-white' : 'bg-slate-50 border-slate-200'} focus:ring-2 focus:ring-primary outline-none transition-all text-sm placeholder:text-xs ${passwordForm.confirm && !isPasswordMatch ? 'border-red-500 ring-2 ring-red-500/20' : ''}`}
+                          />
+                        </div>
+
+                        {passwordForm.confirm && !isPasswordMatch && (
+                          <p className="text-xs font-bold text-red-500 px-2 flex items-center gap-1">
+                            <Lock className="w-3 h-3" /> Passwords do not match
+                          </p>
+                        )}
+
+                        <div className="flex gap-2">
+                          <button 
+                            disabled={!canSavePassword}
+                            onClick={() => {
+                              setIsChangingPassword(false);
+                              setPasswordForm({ current: '', new: '', confirm: '' });
+                            }}
+                            className="flex-1 py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Save
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setIsChangingPassword(false);
+                              setPasswordForm({ current: '', new: '', confirm: '' });
+                            }}
+                            className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-white/5 font-bold dark:text-white transition-all font-bold"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 space-y-6">
+            <div className={`p-8 rounded-[2.5rem] border ${isDark ? 'bg-[#12161F] border-white/5' : 'bg-white border-slate-200'} shadow-xl shadow-slate-200/50 dark:shadow-none`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="space-y-2">
+                  <label className="text-sm font-black uppercase tracking-widest text-slate-400 px-2">First Name</label>
+                  <input 
+                    type="text" 
+                    value={editedProfile.name}
+                    onChange={(e) => handleUpdate({ name: e.target.value })}
+                    className={`w-full px-5 py-3 rounded-2xl border ${isDark ? 'bg-black/20 border-white/10 text-white' : 'bg-slate-50 border-slate-200'} focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold`}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-black uppercase tracking-widest text-slate-400 px-2">Last Name</label>
+                  <input 
+                    type="text" 
+                    value={editedProfile.surname}
+                    onChange={(e) => handleUpdate({ surname: e.target.value })}
+                    className={`w-full px-5 py-3 rounded-2xl border ${isDark ? 'bg-black/20 border-white/10 text-white' : 'bg-slate-50 border-slate-200'} focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold`}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Contact & Visibility</h3>
+                
+                <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${isDark ? 'bg-black/20 border-white/5' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-blue-500/10 text-blue-500">
+                      <Mail className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">Email Address</p>
+                      <p className="font-bold dark:text-white">{editedProfile.email}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleUpdate({ emailVisible: !editedProfile.emailVisible })}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${editedProfile.emailVisible ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-white/10 text-slate-500'}`}
+                  >
+                    {editedProfile.emailVisible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                    {editedProfile.emailVisible ? 'Visible' : 'Hidden'}
+                  </button>
+                </div>
+
+                <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${isDark ? 'bg-black/20 border-white/5' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-green-500/10 text-green-500">
+                      <Phone className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">Phone Number</p>
+                      <input 
+                        type="text" 
+                        value={editedProfile.phone || ''}
+                        placeholder="Not set"
+                        onChange={(e) => handleUpdate({ phone: e.target.value })}
+                        className="bg-transparent border-none p-0 focus:ring-0 font-bold dark:text-white placeholder:text-slate-400 w-full"
+                      />
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleUpdate({ phoneVisible: !editedProfile.phoneVisible })}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${editedProfile.phoneVisible ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-white/10 text-slate-500'}`}
+                  >
+                    {editedProfile.phoneVisible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                    {editedProfile.phoneVisible ? 'Visible' : 'Hidden'}
+                  </button>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center justify-between px-2">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Social Media</h3>
+                    <button 
+                      onClick={() => handleUpdate({ socialsVisible: !editedProfile.socialsVisible })}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${editedProfile.socialsVisible ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-white/10 text-slate-500'}`}
+                    >
+                      {editedProfile.socialsVisible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                      {editedProfile.socialsVisible ? 'Show on Guest Page' : 'Hidden'}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { id: 'instagram', label: 'Instagram', icon: <Instagram className="w-4 h-4" /> },
+                      { id: 'facebook', label: 'Facebook', icon: <Facebook className="w-4 h-4" /> },
+                      { id: 'linkedin', label: 'LinkedIn', icon: <Linkedin className="w-4 h-4" /> },
+                      { id: 'pinterest', label: 'Pinterest', icon: <ImageIcon className="w-4 h-4" /> }
+                    ].map((platform) => (
+                      <div key={platform.id} className={`flex items-center gap-3 p-4 rounded-2xl border ${isDark ? 'bg-black/20 border-white/5' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className="text-slate-400">{platform.icon}</div>
+                        <input 
+                          type="text" 
+                          placeholder={`${platform.label} handle`}
+                          value={editedProfile.socials[platform.id as keyof UserProfile['socials']] || ''}
+                          onChange={(e) => handleSocialUpdate(platform.id as keyof UserProfile['socials'], e.target.value)}
+                          className="bg-transparent border-none p-0 focus:ring-0 text-sm font-bold dark:text-white placeholder:text-slate-400 w-full"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function CalendarTab(props: { events: Event[], onSelectEvent: (id: string) => void, key?: string }) {
   const { events, onSelectEvent } = props;
+  const { language, t } = useI18n();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'year' | 'list'>('month');
   
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   
-  const monthName = currentDate.toLocaleString('default', { month: 'long' });
+  const monthName = language === 'az' ? AZ_MONTHS_LONG[month] : currentDate.toLocaleString(language === 'tr' ? 'tr-TR' : language === 'ru' ? 'ru-RU' : 'en-US', { month: 'long' });
 
   const getEventsForDate = (date: Date) => {
     const d = new Date(date);
@@ -4291,8 +4829,8 @@ function CalendarTab(props: { events: Event[], onSelectEvent: (id: string) => vo
     return (
       <div className="bg-white dark:bg-[#12161F] border border-slate-200 dark:border-white/5 rounded-[2rem] overflow-hidden shadow-xl shadow-slate-200/20 dark:shadow-none">
         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-white/5">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-            <div key={d} className="py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          {t.weekdaysShort.map((d, i) => (
+            <div key={`${d}-${i}`} className="py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
               {d}
             </div>
           ))}
@@ -4329,9 +4867,9 @@ function CalendarTab(props: { events: Event[], onSelectEvent: (id: string) => vo
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {months.map((m, idx) => {
-          const mName = m.toLocaleString('default', { month: 'long' });
-          const mYear = m.getFullYear();
           const mMonth = m.getMonth();
+          const mName = language === 'az' ? AZ_MONTHS_LONG[mMonth] : m.toLocaleString(language === 'tr' ? 'tr-TR' : language === 'ru' ? 'ru-RU' : 'en-US', { month: 'long' });
+          const mYear = m.getFullYear();
           const daysInM = new Date(mYear, mMonth + 1, 0).getDate();
           const firstD = new Date(mYear, mMonth, 1).getDay();
           const mDays = Array.from({ length: daysInM }, (_, i) => i + 1);
@@ -4340,8 +4878,8 @@ function CalendarTab(props: { events: Event[], onSelectEvent: (id: string) => vo
             <div key={idx} className="bg-white dark:bg-[#12161F] border border-slate-200 dark:border-white/5 rounded-[2rem] p-6 shadow-sm">
               <h3 className="text-lg font-black text-indigo-950 dark:text-white mb-4 text-center">{mName}</h3>
               <div className="grid grid-cols-7 gap-1">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
-                  <div key={d} className="text-[8px] font-black text-slate-400 text-center uppercase mb-2">{d}</div>
+                {t.weekdaysMin.map((d, i) => (
+                  <div key={`${d}-${i}`} className="text-[8px] font-black text-slate-400 text-center uppercase mb-2">{d}</div>
                 ))}
                 {Array.from({ length: firstD }).map((_, i) => (
                   <div key={`empty-${i}`} />
@@ -4376,10 +4914,10 @@ function CalendarTab(props: { events: Event[], onSelectEvent: (id: string) => vo
     );
   };
 
-  const formatEventDate = (event: Event) => {
-    const start = new Date(event.eventDate).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+  const formatCalEventDate = (event: Event) => {
+    const start = formatEventDate(event.eventDate, language, true);
     if (!event.endDate || event.endDate === event.eventDate) return start;
-    const end = new Date(event.endDate).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+    const end = formatEventDate(event.endDate, language, true);
     return `${start} - ${end}`;
   };
 
@@ -4414,11 +4952,11 @@ function CalendarTab(props: { events: Event[], onSelectEvent: (id: string) => vo
                <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
                      <CalendarIcon className="w-4 h-4 text-primary" />
-                     {formatEventDate(event)}
+                     {formatCalEventDate(event)}
                   </div>
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
                      <ScanFace className="w-4 h-4 text-secondary" />
-                     {event.photoCount} Photos
+                     {event.photoCount} {t.photos}
                   </div>
                </div>
             </div>
@@ -4472,21 +5010,21 @@ function CalendarTab(props: { events: Event[], onSelectEvent: (id: string) => vo
             onClick={() => setCurrentDate(new Date())}
             className="px-4 py-2 bg-white dark:bg-[#12161F] border border-slate-200 dark:border-white/5 rounded-xl text-sm font-bold text-slate-600 dark:text-white hover:bg-slate-50 transition-all shadow-sm"
           >
-            Today
+            {t.today}
           </button>
           <div className="flex items-center bg-white dark:bg-[#12161F] border border-slate-200 dark:border-white/5 rounded-xl p-1 shadow-sm">
              <button 
               onClick={() => setView('month')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'month' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}
-             >Month</button>
+             >{t.month}</button>
              <button 
               onClick={() => setView('year')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'year' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}
-             >Year</button>
+             >{t.year}</button>
              <button 
               onClick={() => setView('list')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'list' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}
-             >List</button>
+             >{t.list}</button>
           </div>
         </div>
       </div>
@@ -4508,6 +5046,7 @@ function CalendarTab(props: { events: Event[], onSelectEvent: (id: string) => vo
 
 function CalendarEventItem(props: { event: Event, onSelect: (id: string) => void, key?: string }) {
   const { event, onSelect } = props;
+  const { t, language } = useI18n();
   return (
     <motion.div 
       whileHover={{ scale: 1.02, x: 2 }}
@@ -4533,9 +5072,9 @@ function CalendarEventItem(props: { event: Event, onSelect: (id: string) => void
             <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
               <CalendarIcon className="w-3 h-3 text-primary" />
               {(() => {
-                const start = new Date(event.eventDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+                const start = formatEventDate(event.eventDate, language);
                 if (!event.endDate || event.endDate === event.eventDate) return start;
-                const end = new Date(event.endDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+                const end = formatEventDate(event.endDate, language);
                 return `${start} - ${end}`;
               })()}
             </div>
@@ -4546,9 +5085,9 @@ function CalendarEventItem(props: { event: Event, onSelect: (id: string) => void
           </div>
           <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex justify-between items-center">
              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${event.status === 'Published' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                {event.status}
+                {event.status === 'Published' ? t.published : t.draft}
              </span>
-             <span className="text-[8px] font-bold text-slate-400">Click to view detail</span>
+             <span className="text-[8px] font-bold text-slate-400">{t.clickToViewDetail}</span>
           </div>
         </div>
         <div className="absolute top-full left-1/2 -translate-x-1/2 w-3 h-3 bg-white dark:bg-[#1A1F2B] border-r border-b border-slate-200 dark:border-white/10 rotate-45 -mt-1.5" />
@@ -4643,7 +5182,8 @@ function GuestPinEntry({ event, onAccessGranted, isDark }: { event: Event, onAcc
   );
 }
 
-function GuestView({ event, isDark, onClose }: { event: Event, isDark: boolean, onClose: () => void }) {
+function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDark: boolean, userProfile: UserProfile, onClose: () => void }) {
+  const { t, language } = useI18n();
   const [isAuthenticated, setIsAuthenticated] = useState(!event.shareSettings?.passwordEnabled);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -4680,7 +5220,7 @@ function GuestView({ event, isDark, onClose }: { event: Event, isDark: boolean, 
       {/* Navbar for guest */}
       <nav className="fixed top-0 w-full z-50 p-6 flex items-center justify-between pointer-events-none">
         <div className="pointer-events-auto">
-          <span className="text-xs italic opacity-60">Gallery by fuad</span>
+          <span className="text-xs italic opacity-60">{t.galleryBy.replace('{name}', userProfile.name)}</span>
         </div>
         <div className="pointer-events-auto">
           <button 
@@ -4730,7 +5270,7 @@ function GuestView({ event, isDark, onClose }: { event: Event, isDark: boolean, 
              <div className="w-24 h-1 mx-auto" style={{ backgroundColor: design.accentColor, opacity: 0.6 }} />
           </div>
           <p className="opacity-60 text-lg md:text-2xl italic">
-            {new Date(event.eventDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            {formatEventDate(event.eventDate, language, true)}
           </p>
         </motion.div>
 
@@ -4752,11 +5292,88 @@ function GuestView({ event, isDark, onClose }: { event: Event, isDark: boolean, 
           <GuestFaceSearchView event={event} isDark={isDark} />
         )}
       </main>
+
+      {/* Photographer Profile Section */}
+      <footer className="w-full py-32 px-6 border-t border-black/5" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
+        <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-12">
+          <div className="space-y-4">
+            <h2 className="text-sm font-black uppercase tracking-[0.3em] opacity-40">{t.meetPhotographer}</h2>
+            <div className="w-12 h-1 mx-auto" style={{ backgroundColor: design.accentColor, opacity: 0.4 }} />
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16 text-left">
+            <div className={`w-40 h-40 rounded-full overflow-hidden border-8 border-white shadow-2xl ${design.coverShape === 'circle' ? 'rounded-full' : 'rounded-[3rem]'}`}>
+              {userProfile.photo ? (
+                <img src={userProfile.photo} alt={userProfile.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400">
+                  <User className="w-16 h-16" />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-4xl font-black tracking-tight" style={{ color: design.textColor }}>
+                  {userProfile.name} {userProfile.surname}
+                </h3>
+                <p className="text-xl opacity-60 italic mt-1">{t.photographer}</p>
+              </div>
+
+              <div className="flex flex-wrap gap-x-8 gap-y-4">
+                {userProfile.emailVisible && (
+                  <a href={`mailto:${userProfile.email}`} className="flex items-center gap-3 group">
+                    <div className="p-2 rounded-lg bg-black/5 group-hover:bg-primary/10 transition-colors">
+                      <Mail className="w-4 h-4" style={{ color: design.accentColor }} />
+                    </div>
+                    <span className="font-bold opacity-80">{userProfile.email}</span>
+                  </a>
+                )}
+                {userProfile.phoneVisible && userProfile.phone && (
+                  <a href={`tel:${userProfile.phone}`} className="flex items-center gap-3 group">
+                    <div className="p-2 rounded-lg bg-black/5 group-hover:bg-primary/10 transition-colors">
+                      <Phone className="w-4 h-4" style={{ color: design.accentColor }} />
+                    </div>
+                    <span className="font-bold opacity-80">{userProfile.phone}</span>
+                  </a>
+                )}
+              </div>
+
+              {userProfile.socialsVisible && (
+                <div className="flex gap-4">
+                  {userProfile.socials.instagram && (
+                    <a href={`https://instagram.com/${userProfile.socials.instagram}`} target="_blank" rel="noreferrer" className="p-3 rounded-2xl bg-black/5 hover:bg-primary hover:text-white transition-all">
+                      <Instagram className="w-5 h-5" />
+                    </a>
+                  )}
+                  {userProfile.socials.facebook && (
+                    <a href={`https://facebook.com/${userProfile.socials.facebook}`} target="_blank" rel="noreferrer" className="p-3 rounded-2xl bg-black/5 hover:bg-primary hover:text-white transition-all">
+                      <Facebook className="w-5 h-5" />
+                    </a>
+                  )}
+                  {userProfile.socials.linkedin && (
+                    <a href={`https://linkedin.com/in/${userProfile.socials.linkedin}`} target="_blank" rel="noreferrer" className="p-3 rounded-2xl bg-black/5 hover:bg-primary hover:text-white transition-all">
+                      <Linkedin className="w-5 h-5" />
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="pt-12 border-t border-black/5 w-full">
+            <p className="text-xs font-bold tracking-widest opacity-30 uppercase">
+              {t.poweredBy} © 2024
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
 
 function GuestGalleryView({ event, isDark, photos: initialPhotos }: { event: Event, isDark: boolean, photos?: Photo[] }) {
+  const { t } = useI18n();
   const design = event.galleryDesign;
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos || []);
   const [isLoading, setIsLoading] = useState(!initialPhotos);
@@ -4782,7 +5399,7 @@ function GuestGalleryView({ event, isDark, photos: initialPhotos }: { event: Eve
     return (
       <div className="flex flex-col items-center justify-center p-20 space-y-4">
         <RotateCw className="w-8 h-8 text-primary animate-spin" />
-        <p className="text-xs font-black uppercase tracking-widest opacity-40">Loading Gallery...</p>
+        <p className="text-xs font-black uppercase tracking-widest opacity-40">{t.loadingGallery}</p>
       </div>
     );
   }
@@ -4791,15 +5408,15 @@ function GuestGalleryView({ event, isDark, photos: initialPhotos }: { event: Eve
     <div className="w-full space-y-12 max-w-none">
       <div className="flex flex-col md:flex-row md:items-center justify-between border-t border-slate-200 dark:border-white/5 pt-12 px-4 md:px-8 gap-6">
         <div className="space-y-1">
-          <h2 className="text-4xl uppercase font-black" style={{ color: design?.textColor }}>The Gallery</h2>
-          <p className="text-xs font-black uppercase tracking-[0.3em] opacity-40">Showing {photos.length} moments</p>
+          <h2 className="text-4xl uppercase font-black" style={{ color: design?.textColor }}>{t.theGallery}</h2>
+          <p className="text-xs font-black uppercase tracking-[0.3em] opacity-40">{t.showingMoments.replace('{count}', photos.length.toString())}</p>
         </div>
 
         {/* Dynamic Column Control */}
         <div className="flex items-center gap-1 p-1 rounded-2xl border bg-black/5 dark:bg-white/5 self-center md:self-auto" style={{ borderColor: `${design?.accentColor}20` }}>
           <button 
             onClick={() => setColCount(3)}
-            title="Wide View"
+            title={t.wideView}
             className={`px-4 py-2 rounded-xl transition-all ${colCount === 3 ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-40 hover:opacity-100'}`}
             style={{ color: design?.textColor }}
           >
@@ -4807,7 +5424,7 @@ function GuestGalleryView({ event, isDark, photos: initialPhotos }: { event: Eve
           </button>
           <button 
             onClick={() => setColCount(5)}
-            title="Standard View"
+            title={t.standardView}
             className={`px-4 py-2 rounded-xl transition-all ${colCount === 5 ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-40 hover:opacity-100'}`}
             style={{ color: design?.textColor }}
           >
@@ -4815,7 +5432,7 @@ function GuestGalleryView({ event, isDark, photos: initialPhotos }: { event: Eve
           </button>
           <button 
             onClick={() => setColCount(8)}
-            title="Compact View"
+            title={t.compactView}
             className={`px-4 py-2 rounded-xl transition-all ${colCount === 8 ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-40 hover:opacity-100'}`}
             style={{ color: design?.textColor }}
           >
@@ -4839,7 +5456,7 @@ function GuestGalleryView({ event, isDark, photos: initialPhotos }: { event: Eve
         </div>
       </div>
 
-      <div className="w-full px-0 max-w-none">
+      <div className="w-full px-1 md:px-2 max-w-none">
         <div className={`${colCount === 3 ? 'columns-1 md:columns-3' : colCount === 5 ? 'columns-2 lg:columns-5' : 'columns-3 md:columns-5 lg:columns-6 xl:columns-8'} gap-1 md:gap-2 w-full`}>
           {photos.map((photo, index) => (
             <div key={photo.id} className="break-inside-avoid mb-1 md:mb-2">
@@ -4888,13 +5505,14 @@ function GuestGalleryView({ event, isDark, photos: initialPhotos }: { event: Eve
 }
 
 function GuestFaceSearchView({ event, isDark }: { event: Event, isDark: boolean }) {
+  const { t } = useI18n();
   const design = event.galleryDesign;
   return (
     <div className="space-y-12 py-12">
       <div className="max-w-xl mx-auto text-center space-y-6">
-        <h2 className="text-4xl uppercase font-black" style={{ color: design?.textColor }}>Find Your Special Moments</h2>
+        <h2 className="text-4xl uppercase font-black" style={{ color: design?.textColor }}>{t.findYourSpecialMoments}</h2>
         <p className="opacity-60 italic text-lg leading-relaxed">
-          Upload a photo of yourself and our AI will find every image from the event that features your smile.
+          {t.uploadSelfieDesc}
         </p>
       </div>
 
@@ -4914,25 +5532,25 @@ function GuestFaceSearchView({ event, isDark }: { event: Event, isDark: boolean 
         <div className="flex flex-col md:flex-row w-full gap-4">
           <button className="flex-1 py-5 bg-primary text-white rounded-2xl font-black flex items-center justify-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all text-sm uppercase tracking-widest">
             <Camera className="w-5 h-5" />
-            Take a Selfie
+            {t.takeASelfie}
           </button>
           <button 
             className="flex-1 py-5 rounded-2xl font-black flex items-center justify-center gap-3 transition-all text-sm uppercase tracking-widest shadow-xl"
             style={{ backgroundColor: `${design?.accentColor}10`, color: design?.textColor }}
           >
             <CloudUpload className="w-5 h-5" />
-            Upload Profile
+            {t.uploadProfile}
           </button>
         </div>
         
-        <p className="mt-8 text-xs font-black uppercase tracking-[0.2em] opacity-40">Privacy First: Your photo is only used for searching</p>
+        <p className="mt-8 text-xs font-black uppercase tracking-[0.2em] opacity-40">{t.privacyFirstDesc}</p>
       </div>
 
       {/* Features highlights for guest */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12">
-        <GuestFeature icon={<ShieldCheck className="w-5 h-5" />} title="Private Access" desc="Only you see your matched photos" isDark={isDark} />
-        <GuestFeature icon={<ImageIcon className="w-5 h-5" />} title="High Quality" desc="Download uncompressed originals" isDark={isDark} />
-        <GuestFeature icon={<BarChart3 className="w-5 h-5" />} title="Instant Results" desc="Find photos across thousands in seconds" isDark={isDark} />
+        <GuestFeature icon={<ShieldCheck className="w-5 h-5" />} title={t.privateAccessTitle} desc={t.privateAccessDesc} isDark={isDark} />
+        <GuestFeature icon={<ImageIcon className="w-5 h-5" />} title={t.highQualityTitle} desc={t.highQualityDesc} isDark={isDark} />
+        <GuestFeature icon={<BarChart3 className="w-5 h-5" />} title={t.instantResultsTitle} desc={t.instantResultsDesc} isDark={isDark} />
       </div>
     </div>
   );
