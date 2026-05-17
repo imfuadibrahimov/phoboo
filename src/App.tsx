@@ -718,7 +718,7 @@ function MainApp() {
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => setCurrentPage('home')}
           >
-            <div className="text-2xl font-black tracking-tighter text-brand-dark dark:text-white">Phoboo</div>
+            <div className="text-2xl font-black tracking-tighter text-brand-dark dark:text-white">Memorpho</div>
           </motion.div>
           
           <div className="hidden md:flex items-center gap-x-8">
@@ -817,7 +817,7 @@ function MainApp() {
                     <div className="relative aspect-[16/10] rounded-2xl overflow-hidden bg-white shadow-2xl border border-[#C19A5B]/10 dark:border-white/10 shadow-[#C19A5B]/10">
                       <img 
                         src="/src/assets/images/regenerated_image_1778956970237.png" 
-                        alt="Phoboo Gallery Interface"
+                        alt="Memorpho Gallery Interface"
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-black/[0.02]" />
@@ -981,7 +981,7 @@ function MainApp() {
       <footer className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl w-full py-16 border-t border-white/20 dark:border-white/5">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div className="space-y-6 lg:col-span-1">
-            <div className="text-2xl font-black text-brand-dark dark:text-white tracking-tighter">Phoboo</div>
+            <div className="text-2xl font-black text-brand-dark dark:text-white tracking-tighter">Memorpho</div>
             <p className="text-sm text-slate-500 max-w-xs leading-relaxed">
               {t.footerDesc}
             </p>
@@ -1108,7 +1108,7 @@ function GetStartedPage({ onSwitchToLogin, onLogin }: { onSwitchToLogin: () => v
           </div>
 
           <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed text-center">
-            By creating an account, you agree to Phoboo's <button className="text-slate-600 dark:text-slate-300 hover:underline">Terms of Service</button> and have read and understood the <button className="text-slate-600 dark:text-slate-300 hover:underline">Privacy Policy</button>.
+            By creating an account, you agree to Memorpho's <button className="text-slate-600 dark:text-slate-300 hover:underline">Terms of Service</button> and have read and understood the <button className="text-slate-600 dark:text-slate-300 hover:underline">Privacy Policy</button>.
           </p>
         </motion.div>
         
@@ -1182,7 +1182,7 @@ function SignInPage({ onSwitchToRegister, onLogin }: { onSwitchToRegister: () =>
             <h1 className="text-4xl font-serif font-black text-brand-dark dark:text-white tracking-tighter mb-2">
               {t.welcomeBack.split(' ')[0]} <span className="text-primary italic">{t.welcomeBack.split(' ')[1] || ''}</span>
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">{t.newToPhoboo} <button onClick={onSwitchToRegister} className="text-primary hover:underline font-bold">{t.createAccount}</button></p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">{t.newToMemorpho} <button onClick={onSwitchToRegister} className="text-primary hover:underline font-bold">{t.createAccount}</button></p>
           </div>
 
           <div className="space-y-4">
@@ -1287,7 +1287,7 @@ function Dashboard({ activeTab, setActiveTab, onLogout, isDark, setIsDark, onSel
               onClick={() => setActiveTab('events')}
               className="text-2xl font-black tracking-tighter text-brand-dark dark:text-white cursor-pointer hover:opacity-80 transition-opacity"
             >
-              Phoboo
+              Memorpho
             </div>
             <LanguageSwitcher current={language} onChange={setLanguage} isDark={isDark} />
           </div>
