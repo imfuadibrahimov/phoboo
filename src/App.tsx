@@ -931,35 +931,7 @@ function MainApp() {
             </section>
 
 
-            {/* CTA Section */}
-            <section className="max-w-7xl mx-auto px-6 mb-24">
-              <motion.div 
-                whileHover={{ scale: 1.01 }}
-                className="vibrant-gradient rounded-[2.5rem] p-16 text-center relative overflow-hidden shadow-2xl"
-              >
-                <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                  <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                    <path d="M0 0 L100 0 L100 100 Z" fill="white" />
-                  </svg>
-                </div>
-                <div className="relative z-10 space-y-8">
-                  <h2 className="text-4xl md:text-6xl font-extrabold text-white leading-tight">
-                    {t.readyToAutomate.split(' ').slice(0, 2).join(' ')} <span className="underline decoration-white/30 decoration-4 underline-offset-8">{t.readyToAutomate.split(' ').slice(2, 3).join(' ')}</span> {t.readyToAutomate.split(' ').slice(3).join(' ')}
-                  </h2>
-                  <p className="text-indigo-100 text-xl max-w-2xl mx-auto font-medium">
-                    {t.getStartedNow}
-                  </p>
-                  <div className="pt-4">
-                    <button 
-                      onClick={() => setCurrentPage('get-started')}
-                      className="bg-white text-primary px-12 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-all shadow-xl shadow-indigo-900/20 active:scale-95"
-                    >
-                      {t.getStarted}
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </section>
+
           </motion.main>
         ) : currentPage === 'pricing' ? (
           <PricingPage key="pricing" />
