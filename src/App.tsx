@@ -1233,9 +1233,9 @@ function SignInPage({ onSwitchToRegister, onLogin }: { onSwitchToRegister: () =>
               className="w-full py-4 vibrant-gradient text-white rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20"
             >
               {t.signIn}
-            </button>
-          </div>
-        </motion.div>
+              </button>
+            </div>
+          </motion.div>
         
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-secondary/2 blur-[120px] rounded-full pointer-events-none" />
       </div>
@@ -4021,31 +4021,6 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-10"
               >
-                {/* Access Type */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.accessType}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button 
-                      onClick={() => setAccessType('face_search')}
-                      className={`p-6 rounded-3xl border-2 transition-all text-left flex items-center gap-4 ${editedEvent.shareSettings?.accessType === 'face_search' ? 'border-primary bg-primary/5' : 'border-white/5 bg-white/5 hover:bg-white/10'}`}
-                    >
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${editedEvent.shareSettings?.accessType === 'face_search' ? 'border-primary shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'border-slate-600'}`}>
-                        {editedEvent.shareSettings?.accessType === 'face_search' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
-                      </div>
-                      <span className="font-bold text-sm tracking-tight opacity-90">{t.faceSearchAccess}</span>
-                    </button>
-                    <button 
-                      onClick={() => setAccessType('full')}
-                      className={`p-6 rounded-3xl border-2 transition-all text-left flex items-center gap-4 ${editedEvent.shareSettings?.accessType === 'full' ? 'border-primary bg-primary/5' : 'border-white/5 bg-white/5 hover:bg-white/10'}`}
-                    >
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${editedEvent.shareSettings?.accessType === 'full' ? 'border-primary shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'border-slate-600'}`}>
-                        {editedEvent.shareSettings?.accessType === 'full' && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
-                      </div>
-                      <span className="font-bold text-sm tracking-tight opacity-90">{t.fullAccess}</span>
-                    </button>
-                  </div>
-                </div>
-
                 {/* Links Section */}
                 <div className="space-y-6 pt-6 border-t border-white/5">
                   <div className="space-y-4">
@@ -4112,25 +4087,11 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
                          >
                            <ArrowUpRight className="w-4 h-4" />
                          </button>
-                       </div>
-                    </div>
-                  </div>
-
-                  <div className="p-6 bg-primary/5 rounded-[2rem] border border-primary/10 flex items-center gap-6">
-                    <div className="bg-white p-3 rounded-2xl shadow-xl shrink-0">
-                       <QrCode className="w-16 h-16 text-indigo-950" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black uppercase tracking-widest text-primary mb-1">{t.downloadQRCodes}</h4>
-                      <p className="text-xs text-slate-400 font-medium">{t.downloadQRDesc}</p>
-                      <button className="mt-3 text-xs font-black text-white hover:text-primary transition-colors flex items-center gap-1 uppercase tracking-widest">
-                        {t.downloadKit} <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        </div>
+                     </div>
                   </div>
                 </div>
 
-                {/* Security options moved here */}
                 <div className="space-y-8 pt-8 border-t border-white/5">
                    <div className="grid grid-cols-2 gap-10">
                       <div className="space-y-4">
@@ -4148,23 +4109,25 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
                          </div>
                       </div>
 
-                      <div className="space-y-2">
-                          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{t.securityPIN}</h3>
-                          <div className="relative group">
-                             <input 
-                                readOnly
-                                value={editedEvent.shareSettings?.pin}
-                                className="w-full px-6 py-4 bg-[#12161F] border border-white/10 rounded-2xl text-slate-500 font-mono text-xl pr-20 group-hover:bg-white/[0.07] transition-all"
-                             />
-                             <button 
-                                onClick={() => navigator.clipboard.writeText(editedEvent.shareSettings?.pin || '')}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors font-bold text-xs"
-                             >
-                                <Copy className="w-4 h-4" />
-                                {t.copy}
-                             </button>
-                          </div>
-                      </div>
+                      {editedEvent.shareSettings?.passwordEnabled && (
+                        <div className="space-y-2">
+                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{t.securityPIN}</h3>
+                            <div className="relative group">
+                               <input 
+                                  readOnly
+                                  value={editedEvent.shareSettings?.pin}
+                                  className="w-full px-6 py-4 bg-[#12161F] border border-white/10 rounded-2xl text-slate-500 font-mono text-xl pr-20 group-hover:bg-white/[0.07] transition-all"
+                                />
+                                <button 
+                                  onClick={() => navigator.clipboard.writeText(editedEvent.shareSettings?.pin || '')}
+                                  className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors font-bold text-xs"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                  {t.copy}
+                                </button>
+                            </div>
+                        </div>
+                      )}
                    </div>
 
                    <div className="flex items-center justify-between">
