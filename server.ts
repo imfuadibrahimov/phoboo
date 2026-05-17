@@ -248,6 +248,7 @@ async function startServer() {
           const blurData = `data:image/webp;base64,${blurBuffer.toString('base64')}`;
           variantMeta.blur = blurData;
           variantMeta.url = variantMeta.medium; // Use medium by default for general display
+          variantMeta.createdAt = new Date().toISOString();
           variantMeta.variants = {
             thumbnail: variantMeta.thumbnail,
             medium: variantMeta.medium,

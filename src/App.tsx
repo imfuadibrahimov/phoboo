@@ -148,6 +148,7 @@ interface Photo {
   eventId?: string;
   size?: string;
   resolution?: string;
+  createdAt?: string;
   variants?: {
     thumbnail: string;
     medium: string;
@@ -1903,6 +1904,7 @@ const MOCK_PHOTOS: Photo[] = [
     filename: 'REAL_PHOTO_001.jpg',
     isHidden: false,
     eventId: 'test-1',
+    createdAt: '2024-05-15T10:00:00Z',
     variants: {
       thumbnail: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=400&auto=format&fit=crop',
       medium: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1600&auto=format&fit=crop',
@@ -1917,6 +1919,7 @@ const MOCK_PHOTOS: Photo[] = [
     filename: 'REAL_PHOTO_002.jpg',
     isHidden: false,
     eventId: 'test-1',
+    createdAt: '2024-05-15T11:00:00Z',
     variants: {
       thumbnail: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=400&auto=format&fit=crop',
       medium: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1600&auto=format&fit=crop',
@@ -1931,6 +1934,7 @@ const MOCK_PHOTOS: Photo[] = [
     filename: 'REAL_PHOTO_003.jpg',
     isHidden: false,
     eventId: 'test-1',
+    createdAt: '2024-05-15T12:00:00Z',
     variants: {
       thumbnail: 'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?q=80&w=400&auto=format&fit=crop',
       medium: 'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?q=80&w=1600&auto=format&fit=crop',
@@ -1944,14 +1948,16 @@ const MOCK_PHOTOS: Photo[] = [
     url: 'https://images.unsplash.com/photo-1481653125770-b78c206c59d4?q=80&w=1200&auto=format&fit=crop',
     filename: 'REAL_PHOTO_004.jpg',
     isHidden: false,
-    eventId: 'test-1'
+    eventId: 'test-1',
+    createdAt: '2024-05-15T13:00:00Z'
   },
   {
     id: 't1-5',
     url: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1200&auto=format&fit=crop',
     filename: 'REAL_PHOTO_005.jpg',
     isHidden: false,
-    eventId: 'test-1'
+    eventId: 'test-1',
+    createdAt: '2024-05-15T14:00:00Z'
   },
   // Generated photos for other events
   ...Array.from({ length: 20 }, (_, i) => ({
@@ -1959,7 +1965,8 @@ const MOCK_PHOTOS: Photo[] = [
     url: `https://images.unsplash.com/photo-${1519741490000 + i}?q=80&w=600&auto=format&fit=crop`,
     filename: `EP6A${7279 + i}.jpg`,
     isHidden: false,
-    eventId: '1'
+    eventId: '1',
+    createdAt: new Date(2024, 4, 1, 10 + i).toISOString()
   }))
 ];
 
@@ -2308,6 +2315,7 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set());
   const [previewPhotoIndex, setPreviewPhotoIndex] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+  const [photoSort, setPhotoSort] = useState<'newest' | 'oldest'>('newest');
   const [isFoldersOpen, setIsFoldersOpen] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'general' | 'share' | 'design'>('general');
@@ -2328,10 +2336,22 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
     // If no photos for this event yet (mocking), just use what we have to not be empty
     if (base.length === 0) base = photos.slice(0, 5);
 
-    if (filter === 'all') return base;
-    if (filter === 'visible') return base.filter(p => !p.isHidden);
-    return base.filter(p => p.isHidden);
-  }, [photos, filter, eventId]);
+    let result = base;
+    if (filter === 'visible') result = base.filter(p => !p.isHidden);
+    else if (filter === 'hidden') result = base.filter(p => p.isHidden);
+
+    // Sort the result
+    return [...result].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      
+      if (timeA === timeB) {
+        // Fallback to name/id sorting if timestamps are same or missing
+        return photoSort === 'newest' ? b.id.localeCompare(a.id) : a.id.localeCompare(b.id);
+      }
+      return photoSort === 'newest' ? timeB - timeA : timeA - timeB;
+    });
+  }, [photos, filter, eventId, photoSort]);
 
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedPhotoIds);
@@ -2751,9 +2771,13 @@ function EventDetailView({ eventId, onBack, isDark, setIsDark, events, onUpdateE
                     : t.smartAutoRotate}
                 </button>
                 <div className="relative group">
-                  <select className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-sm font-bold focus:ring-1 focus:ring-primary outline-none transition-all cursor-pointer ${isDark ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>
-                    <option>{t.oldestFirst}</option>
-                    <option>{t.newestFirst}</option>
+                  <select 
+                    value={photoSort}
+                    onChange={(e) => setPhotoSort(e.target.value as 'newest' | 'oldest')}
+                    className={`appearance-none pl-4 pr-10 py-2 border rounded-lg text-sm font-bold focus:ring-1 focus:ring-primary outline-none transition-all cursor-pointer ${isDark ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}
+                  >
+                    <option value="oldest">{t.oldestFirst}</option>
+                    <option value="newest">{t.newestFirst}</option>
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
                 </div>
@@ -4087,49 +4111,65 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
                          >
                            <ArrowUpRight className="w-4 h-4" />
                          </button>
-                        </div>
-                     </div>
-                  </div>
-                </div>
-
-                <div className="space-y-8 pt-8 border-t border-white/5">
-                   <div className="grid grid-cols-2 gap-10">
-                      <div className="space-y-4">
-                         <div className="flex items-center justify-between">
-                            <div>
-                               <h3 className="font-bold text-sm">{t.passwordProtection}</h3>
-                               <p className="text-xs text-slate-500 font-medium mt-1">{t.passwordProtectionDesc}</p>
-                            </div>
-                            <button 
-                              onClick={handleTogglePassword}
-                              className={`w-12 h-6 rounded-full relative transition-all shadow-inner ${editedEvent.shareSettings?.passwordEnabled ? 'bg-primary' : 'bg-slate-800'}`}
-                            >
-                               <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-md ${editedEvent.shareSettings?.passwordEnabled ? 'right-1' : 'left-1'}`} />
-                            </button>
-                         </div>
                       </div>
+                   </div>
+                </div>
+             </div>
 
-                      {editedEvent.shareSettings?.passwordEnabled && (
-                        <div className="space-y-2">
-                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{t.securityPIN}</h3>
-                            <div className="relative group">
-                               <input 
-                                  readOnly
-                                  value={editedEvent.shareSettings?.pin}
-                                  className="w-full px-6 py-4 bg-[#12161F] border border-white/10 rounded-2xl text-slate-500 font-mono text-xl pr-20 group-hover:bg-white/[0.07] transition-all"
-                                />
-                                <button 
-                                  onClick={() => navigator.clipboard.writeText(editedEvent.shareSettings?.pin || '')}
-                                  className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors font-bold text-xs"
-                                >
-                                  <Copy className="w-4 h-4" />
-                                  {t.copy}
-                                </button>
-                            </div>
-                        </div>
-                      )}
+             <div className="space-y-6 pt-8 border-t border-white/5">
+                   {/* Password Protection Row */}
+                   <div className="flex items-center justify-between group/row">
+                      <div className="flex items-center gap-6">
+                         <div>
+                            <h3 className="font-bold text-sm">{t.passwordProtection}</h3>
+                            <p className="text-xs text-slate-500 font-medium mt-1">{t.passwordProtectionDesc}</p>
+                         </div>
+                         
+                         {editedEvent.shareSettings?.passwordEnabled && (
+                           <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-12 py-2 gap-4 ml-8 group-hover/row:bg-white/10 transition-all shadow-lg shadow-black/20">
+                              <div className="flex flex-col">
+                                <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">{t.securityPIN}</span>
+                                <span className="text-sm font-mono text-primary font-bold tracking-wider leading-none">
+                                  <input 
+                                    type="text"
+                                    autoFocus
+                                    maxLength={4}
+                                    value={editedEvent.shareSettings?.pin || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                      setEditedEvent(prev => ({
+                                        ...prev,
+                                        shareSettings: prev.shareSettings ? {
+                                          ...prev.shareSettings,
+                                          pin: val
+                                        } : undefined
+                                      }));
+                                    }}
+                                    className="bg-transparent border-none focus:outline-none w-14 p-0 text-primary"
+                                  />
+                                </span>
+                               </div>
+                              <div className="w-[1px] h-6 bg-white/10" />
+                              <button 
+                                onClick={() => navigator.clipboard.writeText(editedEvent.shareSettings?.pin || '')}
+                                className="p-1.5 text-slate-400 hover:text-primary transition-colors rounded-lg hover:bg-primary/10"
+                                title={t.copy}
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                           </div>
+                         )}
+                      </div>
+                      
+                      <button 
+                         onClick={handleTogglePassword}
+                         className={`w-12 h-6 rounded-full relative transition-all shadow-inner shrink-0 ${editedEvent.shareSettings?.passwordEnabled ? 'bg-primary' : 'bg-slate-800'}`}
+                      >
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-md ${editedEvent.shareSettings?.passwordEnabled ? 'right-1' : 'left-1'}`} />
+                      </button>
                    </div>
 
+                   {/* Event Registration Row */}
                    <div className="flex items-center justify-between">
                       <div>
                          <h3 className="font-bold text-sm">{t.eventRegistration}</h3>
@@ -4137,7 +4177,7 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
                       </div>
                       <button 
                         onClick={handleToggleRegistration}
-                        className={`w-12 h-6 rounded-full relative transition-all shadow-inner ${editedEvent.shareSettings?.registrationEnabled ? 'bg-primary' : 'bg-slate-800'}`}
+                        className={`w-12 h-6 rounded-full relative transition-all shadow-inner shrink-0 ${editedEvent.shareSettings?.registrationEnabled ? 'bg-primary' : 'bg-slate-800'}`}
                       >
                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-md ${editedEvent.shareSettings?.registrationEnabled ? 'right-1' : 'left-1'}`} />
                       </button>
