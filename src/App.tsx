@@ -80,6 +80,7 @@ import {
 } from 'lucide-react';
 import { useRef, useState, useEffect, ReactNode, useMemo, FormEvent, useCallback, ChangeEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { translations, Language, Translation } from './translations';
+import Logo from './components/Logo';
 import { createContext, useContext } from 'react';
 
 const LanguageContext = createContext<{
@@ -125,6 +126,7 @@ interface UserProfile {
   name: string;
   surname: string;
   photo?: string;
+  bio?: string;
   email: string;
   emailVisible: boolean;
   phone?: string;
@@ -186,6 +188,7 @@ interface Event {
     accentColor: string;
     fontStyle: 'serif' | 'sans';
     coverShape: 'oval' | 'pill' | 'rect' | 'circle';
+    showProfile?: boolean;
   };
 }
 
@@ -332,7 +335,7 @@ function LanguageSwitcher({ current, onChange, isDark }: { current: Language; on
     <div className="relative" ref={containerRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-black tracking-widest uppercase ${
+        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all text-[10px] font-black tracking-widest uppercase ${
           isDark 
             ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' 
             : 'bg-white border-slate-200 text-brand-dark hover:bg-slate-50 shadow-sm'
@@ -493,6 +496,7 @@ function MainApp() {
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: 'Ibrahim',
     surname: 'Fataliyev',
+    bio: 'Professional photographer specialized in wedding and event photography.',
     email: 'ibrahimov9910@gmail.com',
     emailVisible: true,
     phone: '+994 50 123 45 67',
@@ -719,7 +723,9 @@ function MainApp() {
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => setCurrentPage('home')}
           >
-            <div className="text-2xl font-black tracking-tighter text-brand-dark dark:text-white">Memorpho</div>
+            <div className="cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+              <Logo isDark={isDark} className="h-10" />
+            </div>
           </motion.div>
           
           <div className="hidden md:flex items-center gap-x-8">
@@ -954,7 +960,9 @@ function MainApp() {
       <footer className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl w-full py-16 border-t border-white/20 dark:border-white/5">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           <div className="space-y-6 lg:col-span-1">
-            <div className="text-2xl font-black text-brand-dark dark:text-white tracking-tighter">Memorpho</div>
+            <div className="cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+              <Logo isDark={isDark} className="h-10" />
+            </div>
             <p className="text-sm text-slate-500 max-w-xs leading-relaxed">
               {t.footerDesc}
             </p>
@@ -1258,9 +1266,9 @@ function Dashboard({ activeTab, setActiveTab, onLogout, isDark, setIsDark, onSel
           <div className="flex items-center justify-between mb-8">
             <div 
               onClick={() => setActiveTab('events')}
-              className="text-2xl font-black tracking-tighter text-brand-dark dark:text-white cursor-pointer hover:opacity-80 transition-opacity"
+              className="cursor-pointer hover:opacity-80 transition-opacity"
             >
-              Memorpho
+              <Logo isDark={isDark} className="h-9" />
             </div>
             <LanguageSwitcher current={language} onChange={setLanguage} isDark={isDark} />
           </div>
@@ -3731,7 +3739,8 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
         textColor: existingDesign?.textColor || ALBUM_THEMES[0].text,
         accentColor: existingDesign?.accentColor || ALBUM_THEMES[0].accent,
         fontStyle: existingDesign?.fontStyle || ALBUM_THEMES[0].font,
-        coverShape: existingDesign?.coverShape || 'oval'
+        coverShape: existingDesign?.coverShape || 'oval',
+        showProfile: existingDesign?.showProfile ?? true
       }
     };
   });
@@ -4008,6 +4017,43 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
                      </div>
                    </div>
                 </div>
+
+                  <div className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-3xl mt-12">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-primary/20 rounded-2xl">
+                        <User className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <span className="text-base font-black block">{t.showProfileOnGallery}</span>
+                        <span className="text-xs text-slate-500 font-medium">Display your photographer bio at the bottom of the gallery</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setEditedEvent(prev => {
+                        const design = prev.galleryDesign || {
+                          themeId: ALBUM_THEMES[0].id,
+                          backgroundColor: ALBUM_THEMES[0].bg,
+                          textColor: ALBUM_THEMES[0].text,
+                          accentColor: ALBUM_THEMES[0].accent,
+                          fontStyle: ALBUM_THEMES[0].font,
+                          coverShape: 'oval'
+                        };
+                        return {
+                          ...prev,
+                          galleryDesign: {
+                            ...design,
+                            showProfile: !(design.showProfile ?? true)
+                          }
+                        };
+                      })}
+                      className={`w-14 h-7 rounded-full relative transition-colors ${(editedEvent.galleryDesign?.showProfile ?? true) ? 'bg-primary' : 'bg-white/10'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: (editedEvent.galleryDesign?.showProfile ?? true) ? 32 : 4 }}
+                        className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-lg" 
+                      />
+                    </button>
+                  </div>
               </motion.div>
             ) : (
               <motion.div 
@@ -4244,7 +4290,8 @@ function CreateEventModal({ onClose, onCreate }: { onClose: () => void, onCreate
         textColor: ALBUM_THEMES[0].text,
         accentColor: ALBUM_THEMES[0].accent,
         fontStyle: ALBUM_THEMES[0].font,
-        coverShape: 'oval'
+        coverShape: 'oval',
+        showProfile: true
       }
     };
     onCreate(newEvent);
@@ -4666,6 +4713,23 @@ function ProfileTab({ profile, onUpdate, isDark }: { profile: UserProfile, onUpd
                 </div>
               </div>
 
+              <div className="space-y-2 mb-8">
+                <div className="flex items-center justify-between px-2">
+                  <label className="text-sm font-black uppercase tracking-widest text-slate-400">Short Bio</label>
+                  <span className={`text-[10px] font-bold ${(editedProfile.bio?.length || 0) >= 160 ? 'text-red-500' : 'text-slate-500'}`}>
+                    {editedProfile.bio?.length || 0}/160
+                  </span>
+                </div>
+                <textarea 
+                  maxLength={160}
+                  value={editedProfile.bio || ''}
+                  onChange={(e) => handleUpdate({ bio: e.target.value })}
+                  placeholder="Tell something about yourself..."
+                  className={`w-full px-5 py-3 rounded-2xl border ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 placeholder:text-slate-400'} focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold resize-none`}
+                  rows={2}
+                />
+              </div>
+
               <div className="space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Contact & Visibility</h3>
                 
@@ -4716,13 +4780,6 @@ function ProfileTab({ profile, onUpdate, isDark }: { profile: UserProfile, onUpd
                 <div className="space-y-4 pt-4 border-t border-white/5">
                   <div className="flex items-center justify-between px-2">
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Social Media</h3>
-                    <button 
-                      onClick={() => handleUpdate({ socialsVisible: !editedProfile.socialsVisible })}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${editedProfile.socialsVisible ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-white/10 text-slate-500'}`}
-                    >
-                      {editedProfile.socialsVisible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                      {editedProfile.socialsVisible ? 'Show on Guest Page' : 'Hidden'}
-                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -5168,7 +5225,8 @@ function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDa
     textColor: isDark ? '#FFFFFF' : '#1A1B1E',
     accentColor: '#8B5CF6',
     fontStyle: 'serif',
-    coverShape: 'oval'
+    coverShape: 'oval',
+    showProfile: true
   };
 
   const getCoverRadiusClass = () => {
@@ -5269,7 +5327,8 @@ function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDa
       </main>
 
       {/* Photographer Profile Section */}
-      <footer className="w-full py-32 px-6 border-t border-black/5" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
+      {design?.showProfile !== false && (
+        <footer className="w-full py-32 px-6 border-t border-black/5" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
         <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-12">
           <div className="space-y-4">
             <h2 className="text-sm font-black uppercase tracking-[0.3em] opacity-40">{t.meetPhotographer}</h2>
@@ -5292,7 +5351,9 @@ function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDa
                 <h3 className="text-4xl font-black tracking-tight" style={{ color: design.textColor }}>
                   {userProfile.name} {userProfile.surname}
                 </h3>
-                <p className="text-xl opacity-60 italic mt-1">{t.photographer}</p>
+                {userProfile.bio && (
+                  <p className="text-lg opacity-70 mt-2 max-w-lg">{userProfile.bio}</p>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-x-8 gap-y-4">
@@ -5314,7 +5375,7 @@ function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDa
                 )}
               </div>
 
-              {userProfile.socialsVisible && (
+              {Object.values(userProfile.socials).some(val => val && val.trim() !== '') && (
                 <div className="flex gap-4">
                   {userProfile.socials.instagram && (
                     <a href={`https://instagram.com/${userProfile.socials.instagram}`} target="_blank" rel="noreferrer" className="p-3 rounded-2xl bg-black/5 hover:bg-primary hover:text-white transition-all">
@@ -5331,6 +5392,11 @@ function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDa
                       <Linkedin className="w-5 h-5" />
                     </a>
                   )}
+                  {userProfile.socials.pinterest && (
+                    <a href={`https://pinterest.com/${userProfile.socials.pinterest}`} target="_blank" rel="noreferrer" className="p-3 rounded-2xl bg-black/5 hover:bg-primary hover:text-white transition-all">
+                      <ImageIcon className="w-5 h-5" />
+                    </a>
+                  )}
                 </div>
               )}
             </div>
@@ -5343,6 +5409,7 @@ function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDa
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 }

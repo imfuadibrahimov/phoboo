@@ -160,6 +160,7 @@ export interface Translation {
   generalSettings: string;
   shareSettings: string;
   galleryDesign: string;
+  showProfileOnGallery: string;
   eventNameLabel: string;
   albumPresets: string;
   themeClassicCream: string;
@@ -475,6 +476,7 @@ export const translations: Record<Language, Translation> = {
     generalSettings: 'General Settings',
     shareSettings: 'Share Settings',
     galleryDesign: 'Gallery Design',
+    showProfileOnGallery: 'Show photographer profile',
     eventNameLabel: 'Event Name *',
     albumPresets: 'Album Presets',
     themeClassicCream: 'Classic Cream',
@@ -774,6 +776,7 @@ export const translations: Record<Language, Translation> = {
     generalSettings: 'Ümumi Parametrlər',
     shareSettings: 'Paylaşım Parametrləri',
     galleryDesign: 'Qalereya Dizaynı',
+    showProfileOnGallery: 'Fotoqraf profilini göstər',
     eventNameLabel: 'Tədbirin Adı *',
     albumPresets: 'Albom Hazır Ayarları',
     themeClassicCream: 'Klassik Krem',
@@ -1073,6 +1076,7 @@ export const translations: Record<Language, Translation> = {
     generalSettings: 'Genel Ayarlar',
     shareSettings: 'Paylaşım Ayarları',
     galleryDesign: 'Galeri Tasarımı',
+    showProfileOnGallery: 'Fotoğrafçı profilini göster',
     eventNameLabel: 'Etkinlik Adı *',
     albumPresets: 'Albüm Hazır Ayarları',
     themeClassicCream: 'Klasik Krem',
@@ -1372,6 +1376,7 @@ export const translations: Record<Language, Translation> = {
     generalSettings: 'Общие настройки',
     shareSettings: 'Настройки доступа',
     galleryDesign: 'Дизайн галереи',
+    showProfileOnGallery: 'Показать профиль фотографа',
     eventNameLabel: 'Название мероприятия *',
     albumPresets: 'Пресеты альбома',
     themeClassicCream: 'Классический крем',
