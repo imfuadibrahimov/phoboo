@@ -2,5 +2,5 @@
   "name": "Memorpho",
   "description": "Professional event photo delivery platform with AI face recognition, high-resolution galleries, and elegant guest experiences.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

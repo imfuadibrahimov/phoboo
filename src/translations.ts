@@ -105,6 +105,8 @@ export interface Translation {
   confirmNewPassword: string;
   passwordsDoNotMatch: string;
   characterLimitExceeded: string;
+  locationLabel: string;
+  locationPlaceholder: string;
   nameLabel: string;
   descLabel: string;
   durationLabel: string;
@@ -161,6 +163,19 @@ export interface Translation {
   shareSettings: string;
   galleryDesign: string;
   showProfileOnGallery: string;
+  coverAnimation: string;
+  animationNone: string;
+  animationKenBurns: string;
+  animationParallax: string;
+  animationFloat: string;
+  animationLiquid: string;
+  animationWave: string;
+  animationAbstract: string;
+  heroLayout: string;
+  heroLayoutClassic: string;
+  heroLayoutApple: string;
+  heroLayoutCinematic: string;
+  heroLayoutModernSplit: string;
   eventNameLabel: string;
   albumPresets: string;
   themeClassicCream: string;
@@ -174,6 +189,9 @@ export interface Translation {
   coverStyleElegantPill: string;
   coverStyleSoftCircle: string;
   coverStyleBrutalistRect: string;
+  coverStyleOrganic: string;
+  coverStyleWave: string;
+  coverStyleAbstract: string;
   livePreview: string;
   accessType: string;
   faceSearchAccess: string;
@@ -442,6 +460,8 @@ export const translations: Record<Language, Translation> = {
     confirmNewPassword: 'Confirm New Password',
     passwordsDoNotMatch: 'Passwords do not match',
     characterLimitExceeded: 'Character limit exceeded',
+    locationLabel: 'Location',
+    locationPlaceholder: 'Event Venue / City',
     nameLabel: 'Name *',
     descLabel: 'Description',
     durationLabel: 'Event Duration',
@@ -477,6 +497,19 @@ export const translations: Record<Language, Translation> = {
     shareSettings: 'Share Settings',
     galleryDesign: 'Gallery Design',
     showProfileOnGallery: 'Show photographer profile',
+    coverAnimation: 'Cover Animation',
+    animationNone: 'No Animation',
+    animationKenBurns: 'Ken Burns (Zoom)',
+    animationParallax: 'Parallax Scroll',
+    animationFloat: 'Floating Motion',
+    animationLiquid: 'Organic Liquid (Morph)',
+    animationWave: 'Flowing Wave',
+    animationAbstract: 'Geometric Abstract',
+    heroLayout: 'Hero Layout',
+    heroLayoutClassic: 'Classic Centered',
+    heroLayoutApple: 'Apple Style (Soft)',
+    heroLayoutCinematic: 'Cinematic Focus',
+    heroLayoutModernSplit: 'Modern Split',
     eventNameLabel: 'Event Name *',
     albumPresets: 'Album Presets',
     themeClassicCream: 'Classic Cream',
@@ -490,6 +523,9 @@ export const translations: Record<Language, Translation> = {
     coverStyleElegantPill: 'Elegant Pill',
     coverStyleSoftCircle: 'Soft Circle',
     coverStyleBrutalistRect: 'Brutalist Rect',
+    coverStyleOrganic: 'Organic Liquid',
+    coverStyleWave: 'Flowing Wave',
+    coverStyleAbstract: 'Abstract Frame',
     livePreview: 'Live Preview',
     accessType: 'Access Type',
     faceSearchAccess: 'Face search access',
@@ -742,6 +778,8 @@ export const translations: Record<Language, Translation> = {
     confirmNewPassword: 'Yeni Şifrəni Təsdiqlə',
     passwordsDoNotMatch: 'Şifrələr uyğun gəmir',
     characterLimitExceeded: 'Simvol limiti aşıldı',
+    locationLabel: 'Məkan',
+    locationPlaceholder: 'Tədbir Məkanı / Şəhər',
     nameLabel: 'Ad *',
     descLabel: 'Təsvir',
     durationLabel: 'Tədbir müddəti',
@@ -777,6 +815,19 @@ export const translations: Record<Language, Translation> = {
     shareSettings: 'Paylaşım Parametrləri',
     galleryDesign: 'Qalereya Dizaynı',
     showProfileOnGallery: 'Fotoqraf profilini göstər',
+    coverAnimation: 'Kover Animasiyası',
+    animationNone: 'Animasiyasız',
+    animationKenBurns: 'Ken Burns (Yaxınlaşma)',
+    animationParallax: 'Parallaks Skroll',
+    animationFloat: 'Üzən Hərəkət',
+    animationLiquid: 'Orqanik Maye (Morfinq)',
+    animationWave: 'Axan Dalğa',
+    animationAbstract: 'Həndəsi Abstrakt',
+    heroLayout: 'Hero Layautı',
+    heroLayoutClassic: 'Klassik Mərkəzlənmiş',
+    heroLayoutApple: 'Apple Üslubu',
+    heroLayoutCinematic: 'Kinemotoqrafik',
+    heroLayoutModernSplit: 'Müasir Bölünmüş',
     eventNameLabel: 'Tədbirin Adı *',
     albumPresets: 'Albom Hazır Ayarları',
     themeClassicCream: 'Klassik Krem',
@@ -790,6 +841,9 @@ export const translations: Record<Language, Translation> = {
     coverStyleElegantPill: 'Eleqant Həb',
     coverStyleSoftCircle: 'Yumşaq Dairə',
     coverStyleBrutalistRect: 'Brutalist Düzbucaqlı',
+    coverStyleOrganic: 'Orqanik Maye',
+    coverStyleWave: 'Axan Dalğa',
+    coverStyleAbstract: 'Abstrakt Çərçivə',
     livePreview: 'Canlı Ön Baxış',
     accessType: 'Giriş Növü',
     faceSearchAccess: 'Üz axtarışı girişi',
@@ -1042,6 +1096,8 @@ export const translations: Record<Language, Translation> = {
     confirmNewPassword: 'Yeni Şifreyi Onayla',
     passwordsDoNotMatch: 'Şifreler eşleşmiyor',
     characterLimitExceeded: 'Karakter sınırı aşıldı',
+    locationLabel: 'Mekan',
+    locationPlaceholder: 'Etkinlik Mekanı / Şehir',
     nameLabel: 'Ad *',
     descLabel: 'Açıklama',
     durationLabel: 'Etkinlik Süresi',
@@ -1077,6 +1133,19 @@ export const translations: Record<Language, Translation> = {
     shareSettings: 'Paylaşım Ayarları',
     galleryDesign: 'Galeri Tasarımı',
     showProfileOnGallery: 'Fotoğrafçı profilini göster',
+    coverAnimation: 'Kapak Animasyonu',
+    animationNone: 'Animasyonsuz',
+    animationKenBurns: 'Ken Burns (Zoom)',
+    animationParallax: 'Paralaks Kaydırma',
+    animationFloat: 'Yüzen Hareket',
+    animationLiquid: 'Organik Sıvı (Morph)',
+    animationWave: 'Akan Dalga',
+    animationAbstract: 'Geometrik Soyut',
+    heroLayout: 'Kapak Düzeni',
+    heroLayoutClassic: 'Klasik Ortalanmış',
+    heroLayoutApple: 'Apple Tarzı',
+    heroLayoutCinematic: 'Sinematik Odak',
+    heroLayoutModernSplit: 'Modern Bölünmüş',
     eventNameLabel: 'Etkinlik Adı *',
     albumPresets: 'Albüm Hazır Ayarları',
     themeClassicCream: 'Klasik Krem',
@@ -1090,6 +1159,9 @@ export const translations: Record<Language, Translation> = {
     coverStyleElegantPill: 'Zarif Hap',
     coverStyleSoftCircle: 'Yumuşak Daire',
     coverStyleBrutalistRect: 'Brutalist Dikdörtgen',
+    coverStyleOrganic: 'Organik Sıvı',
+    coverStyleWave: 'Akan Dalga',
+    coverStyleAbstract: 'Soyut Çerçeve',
     livePreview: 'Canlı Ön İzleme',
     accessType: 'Erişim Türü',
     faceSearchAccess: 'Yüz arama erişimi',
@@ -1342,6 +1414,8 @@ export const translations: Record<Language, Translation> = {
     confirmNewPassword: 'Подтвердите новый пароль',
     passwordsDoNotMatch: 'Пароли не совпадают',
     characterLimitExceeded: 'Лимит символов превышен',
+    locationLabel: 'Местоположение',
+    locationPlaceholder: 'Место проведения / Город',
     nameLabel: 'Название *',
     descLabel: 'Описание',
     durationLabel: 'Продолжительность',
@@ -1377,6 +1451,19 @@ export const translations: Record<Language, Translation> = {
     shareSettings: 'Настройки доступа',
     galleryDesign: 'Дизайн галереи',
     showProfileOnGallery: 'Показать профиль фотографа',
+    coverAnimation: 'Анимация обложки',
+    animationNone: 'Без анимации',
+    animationKenBurns: 'Эффект наезда (Zoom)',
+    animationParallax: 'Параллакс-скролл',
+    animationFloat: 'Плавающее движение',
+    animationLiquid: 'Органическая жидкость (Морфинг)',
+    animationWave: 'Текучая волна',
+    animationAbstract: 'Геометрический Абстракт',
+    heroLayout: 'Макет обложки',
+    heroLayoutClassic: 'Классический по центру',
+    heroLayoutApple: 'Стиль Apple',
+    heroLayoutCinematic: 'Кинематографичный',
+    heroLayoutModernSplit: 'Современный сплит',
     eventNameLabel: 'Название мероприятия *',
     albumPresets: 'Пресеты альбома',
     themeClassicCream: 'Классический крем',
@@ -1390,6 +1477,9 @@ export const translations: Record<Language, Translation> = {
     coverStyleElegantPill: 'Элегантная капсула',
     coverStyleSoftCircle: 'Мягкий круг',
     coverStyleBrutalistRect: 'Бруталистский прямоуг.',
+    coverStyleOrganic: 'Органическая форма',
+    coverStyleWave: 'Текучая волна',
+    coverStyleAbstract: 'Абстрактная рамка',
     livePreview: 'Предпросмотр',
     accessType: 'Тип доступа',
     faceSearchAccess: 'Доступ по поиску лица',

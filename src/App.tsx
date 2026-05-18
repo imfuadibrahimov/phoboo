@@ -76,7 +76,9 @@ import {
   List,
   CheckCircle2,
   AlertCircle,
-  Edit3
+  Edit3,
+  Apple,
+  Layout
 } from 'lucide-react';
 import { useRef, useState, useEffect, ReactNode, useMemo, FormEvent, useCallback, ChangeEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { translations, Language, Translation } from './translations';
@@ -173,6 +175,7 @@ interface Event {
   status: 'Published' | 'Draft';
   faceSearchCount: number;
   registrationCount: number;
+  location?: string;
   shareSettings?: {
     accessType: 'face_search' | 'full';
     passwordEnabled: boolean;
@@ -187,7 +190,8 @@ interface Event {
     textColor: string;
     accentColor: string;
     fontStyle: 'serif' | 'sans';
-    coverShape: 'oval' | 'pill' | 'rect' | 'circle';
+    coverShape: 'oval' | 'pill' | 'rect' | 'circle' | 'organic' | 'wave' | 'abstract';
+    heroLayout?: 'classic' | 'apple' | 'cinematic' | 'modern-split';
     showProfile?: boolean;
   };
 }
@@ -3733,13 +3737,15 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
         fullAccessToken: existing?.fullAccessToken || generateToken(),
         faceSearchToken: existing?.faceSearchToken || generateToken()
       },
+      location: event.location || '',
       galleryDesign: {
         themeId: existingDesign?.themeId || ALBUM_THEMES[0].id,
         backgroundColor: existingDesign?.backgroundColor || ALBUM_THEMES[0].bg,
         textColor: existingDesign?.textColor || ALBUM_THEMES[0].text,
         accentColor: existingDesign?.accentColor || ALBUM_THEMES[0].accent,
         fontStyle: existingDesign?.fontStyle || ALBUM_THEMES[0].font,
-        coverShape: existingDesign?.coverShape || 'oval',
+        coverShape: existingDesign?.coverShape || 'rect',
+        heroLayout: existingDesign?.heroLayout || 'classic',
         showProfile: existingDesign?.showProfile ?? true
       }
     };
@@ -3769,6 +3775,9 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
       case 'pill': return t.coverStyleElegantPill;
       case 'circle': return t.coverStyleSoftCircle;
       case 'rect': return t.coverStyleBrutalistRect;
+      case 'organic': return t.coverStyleOrganic;
+      case 'wave': return t.coverStyleWave;
+      case 'abstract': return t.coverStyleAbstract;
       default: return id;
     }
   };
@@ -3908,6 +3917,20 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
                       </div>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-1">{t.locationLabel || 'Location'}</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={editedEvent.location || ''}
+                        onChange={(e) => setEditedEvent({...editedEvent, location: e.target.value})}
+                        className="w-full px-6 py-4 bg-[#12161F] border border-white/10 rounded-2xl outline-none transition-all font-bold focus:border-primary"
+                        placeholder={t.locationPlaceholder || 'Event Venue / City'}
+                      />
+                      <Globe className="absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 pointer-events-none" />
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             ) : activeTab === 'design' ? (
@@ -3958,65 +3981,149 @@ function EventSettingsModal({ event, onClose, onSave, initialTab = 'general' }: 
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                   <div className="space-y-6">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.coverStyles}</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        {[
-                          { id: 'oval', name: getCoverStyleName('oval'), icon: <div className="w-10 h-10 border-2 border-current rounded-[40%] flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
-                          { id: 'pill', name: getCoverStyleName('pill'), icon: <div className="w-10 h-10 border-2 border-current rounded-[3rem] flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
-                          { id: 'circle', name: getCoverStyleName('circle'), icon: <div className="w-10 h-10 border-2 border-current rounded-full flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
-                          { id: 'rect', name: getCoverStyleName('rect'), icon: <div className="w-10 h-10 border-2 border-current rounded-xl flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-30" /></div> },
-                        ].map(style => (
-                          <button
-                            key={style.id}
-                            onClick={() => {
-                              setEditedEvent(prev => ({
-                                ...prev,
-                                galleryDesign: prev.galleryDesign ? {
-                                  ...prev.galleryDesign,
-                                  coverShape: style.id as any
-                                } : undefined
-                              }));
-                            }}
-                            className={`p-4 rounded-[1.5rem] border transition-all flex flex-col items-center gap-3 ${editedEvent.galleryDesign?.coverShape === style.id ? 'border-primary bg-primary/10 text-primary shadow-lg' : 'border-white/10 hover:border-white/20 text-slate-400 hover:text-slate-200'}`}
-                          >
-                             {style.icon}
-                             <span className="text-[10px] font-black uppercase tracking-widest">{style.name}</span>
-                          </button>
-                        ))}
+                   <div className="space-y-12">
+                      <div className="space-y-6">
+                         <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.coverStyles}</h3>
+                         <div className="grid grid-cols-2 gap-4">
+                           {[
+                             { id: 'apple', type: 'layout', label: t.heroLayoutApple, icon: <Apple className="w-5 h-5 opacity-40" /> },
+                             { id: 'cinematic', type: 'layout', label: t.heroLayoutCinematic, icon: <Monitor className="w-5 h-5 opacity-40" /> },
+                             { id: 'modern-split', type: 'layout', label: t.heroLayoutModernSplit, icon: <Layout className="w-5 h-5 opacity-40" /> },
+                             
+                             { id: 'circle', type: 'shape', label: getCoverStyleName('circle'), icon: <div className="w-8 h-8 border-2 border-current rounded-full flex items-center justify-center"><ImageIcon className="w-3 h-3 opacity-30" /></div> },
+                             { id: 'rect', type: 'shape', label: getCoverStyleName('rect'), icon: <div className="w-8 h-8 border-2 border-current rounded-xl flex items-center justify-center"><ImageIcon className="w-3 h-3 opacity-30" /></div> },
+                             { id: 'organic', type: 'shape', label: getCoverStyleName('organic'), icon: <div className="w-8 h-8 border-2 border-current rounded-tl-[40%] rounded-tr-[70%] rounded-bl-[80%] rounded-br-[50%] flex items-center justify-center animate-pulse"><ImageIcon className="w-3 h-3 opacity-30" /></div> },
+                           ].map(item => (
+                             <button
+                               key={item.id}
+                               onClick={() => {
+                                 const currentDesign = editedEvent.galleryDesign || { 
+                                   backgroundColor: '#0D1117',
+                                   textColor: '#FFFFFF',
+                                   accentColor: '#8B5CF6',
+                                   fontStyle: 'serif',
+                                   coverShape: 'rect',
+                                   heroLayout: 'classic'
+                                 };
+                                 setEditedEvent(prev => ({
+                                   ...prev,
+                                   galleryDesign: {
+                                     ...currentDesign,
+                                     ...(item.type === 'layout' ? { heroLayout: item.id as any, coverShape: 'rect' } : { coverShape: item.id as any, heroLayout: 'classic' })
+                                   }
+                                 }));
+                               }}
+                               className={`p-4 rounded-[1.5rem] border transition-all flex flex-col items-center gap-3 ${
+                                 (item.type === 'layout' && (editedEvent.galleryDesign?.heroLayout === item.id || (!editedEvent.galleryDesign?.heroLayout && item.id === 'classic'))) ||
+                                 (item.type === 'shape' && editedEvent.galleryDesign?.coverShape === item.id && (editedEvent.galleryDesign?.heroLayout === 'classic' || !editedEvent.galleryDesign?.heroLayout))
+                                 ? 'border-primary bg-primary/10 text-primary shadow-lg' 
+                                 : 'border-white/10 hover:border-white/20 text-slate-400 hover:text-slate-200'
+                               }`}
+                             >
+                                <div className="h-8 flex items-center justify-center">
+                                  {item.icon}
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-widest leading-tight text-center">{item.label}</span>
+                             </button>
+                           ))}
+                         </div>
                       </div>
-                   </div>
 
-                   <div className="space-y-8">
-                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.livePreview}</h3>
-                     <div 
-                       className="aspect-square rounded-[2rem] p-6 flex flex-col items-center justify-center text-center space-y-4 shadow-2xl overflow-hidden relative"
-                       style={{ backgroundColor: editedEvent.galleryDesign?.backgroundColor }}
-                     >
-                        {/* Texture in preview */}
-                        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/asfalt-dark.png")' }} />
-                        
-                        <div 
-                          className={`w-24 h-32 bg-slate-300 shadow-xl transition-all duration-500 overflow-hidden relative z-10 ${
-                            editedEvent.galleryDesign?.coverShape === 'oval' ? 'rounded-[40%]' : 
-                            editedEvent.galleryDesign?.coverShape === 'pill' ? 'rounded-[3rem]' :
-                            editedEvent.galleryDesign?.coverShape === 'circle' ? 'rounded-full h-24' : 'rounded-xl'
-                          }`}
-                        >
-                          <img src={editedEvent.image} className="w-full h-full object-cover grayscale opacity-50" />
-                        </div>
-                        <div className="space-y-1 relative z-10">
-                          <h4 
-                            className={`text-xl ${editedEvent.galleryDesign?.fontStyle === 'serif' ? 'font-serif' : 'font-sans font-bold italic'}`}
-                            style={{ color: editedEvent.galleryDesign?.textColor }}
-                          >
-                            {editedEvent.title}
-                          </h4>
-                          <div className="w-12 h-0.5 mx-auto" style={{ backgroundColor: editedEvent.galleryDesign?.accentColor, opacity: 0.5 }} />
-                        </div>
-                     </div>
-                   </div>
-                </div>
+                    </div>
+
+                    <div className="space-y-8">
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">{t.livePreview}</h3>
+                      <div 
+                        className="aspect-square rounded-[2rem] shadow-2xl overflow-hidden relative transition-all duration-700 flex flex-col"
+                        style={{ backgroundColor: editedEvent.galleryDesign?.backgroundColor }}
+                      >
+                         {(() => {
+                           const layout = editedEvent.galleryDesign?.heroLayout || 'classic';
+                           
+                           if (layout === 'modern-split') {
+                              return (
+                                <div className="w-full h-full flex items-center relative z-10">
+                                  <div className="w-1/2 p-4 space-y-2">
+                                    <div className="w-8 h-1" style={{ backgroundColor: editedEvent.galleryDesign?.accentColor }} />
+                                    <h4 className="text-[10px] font-black truncate" style={{ color: editedEvent.galleryDesign?.textColor }}>{editedEvent.title}</h4>
+                                  </div>
+                                  <div className="w-1/2 h-full p-2">
+                                    <div className="w-full h-full rounded-xl overflow-hidden bg-slate-200">
+                                       <img src={editedEvent.image} className="w-full h-full object-cover grayscale opacity-50" />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                           }
+
+                           if (layout === 'cinematic') {
+                              return (
+                                <div className="w-full h-full relative z-10">
+                                  <img src={editedEvent.image} className="w-full h-full object-cover grayscale opacity-60" />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                                  <div className="absolute bottom-4 left-4 space-y-1">
+                                    <h4 className="text-sm font-black text-white">{editedEvent.title}</h4>
+                                    <div className="w-4 h-0.5 bg-white/30" />
+                                  </div>
+                                </div>
+                              );
+                           }
+
+                           if (layout === 'apple') {
+                              return (
+                                <div className="w-full h-full relative flex flex-col items-center justify-center p-6 z-10">
+                                  <img src={editedEvent.image} className="absolute inset-0 w-full h-full object-cover -z-10 opacity-20" />
+                                  <div className="absolute inset-0 bg-white/40 backdrop-blur-sm -z-10" />
+                                  <h4 className="text-xl font-medium tracking-tight text-black">{editedEvent.title}</h4>
+                                  <div className="w-8 h-px bg-black/10 mt-2" />
+                                </div>
+                              );
+                           }
+
+                           return (
+                             <div className="w-full h-full flex flex-col items-center justify-center p-6 space-y-4">
+                                {/* Texture in preview */}
+                                <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/asfalt-dark.png")' }} />
+                                
+                                <div 
+                                  className={`w-20 h-28 shadow-xl transition-all duration-500 overflow-hidden relative z-10 ${
+                                    editedEvent.galleryDesign?.coverShape === 'oval' ? 'rounded-[40%]' : 
+                                    editedEvent.galleryDesign?.coverShape === 'pill' ? 'rounded-[3rem]' :
+                                    editedEvent.galleryDesign?.coverShape === 'circle' ? 'rounded-full h-20' : 
+                                     editedEvent.galleryDesign?.coverShape === 'organic' ? 'rounded-tl-[40%] rounded-tr-[70%] rounded-bl-[80%] rounded-br-[50%]' :
+                                     editedEvent.galleryDesign?.coverShape === 'wave' ? 'rounded-t-3xl rounded-b-[4rem]' :
+                                     editedEvent.galleryDesign?.coverShape === 'abstract' ? 'rotate-3 scale-95 border-2 border-slate-400/20 shadow-2xl' :
+                                     'rounded-xl'
+                                  }`}
+                                >
+                                  <motion.img 
+                                     src={editedEvent.image} 
+                                     className="w-full h-full object-cover grayscale opacity-50"
+                                     animate={
+                                       editedEvent.galleryDesign?.coverAnimation === 'ken-burns' ? { scale: [1, 1.2], x: [-5, 5], y: [-5, 5] } :
+                                       (editedEvent.galleryDesign?.coverAnimation === 'float' || editedEvent.galleryDesign?.coverAnimation === 'liquid') ? { y: [-5, 5], scale: [1, 1.05, 1] } :
+                                       editedEvent.galleryDesign?.coverAnimation === 'wave' ? { y: [2, -2, 2], rotate: [0.5, -0.5, 0.5] } :
+                                       editedEvent.galleryDesign?.coverAnimation === 'abstract' ? { rotate: [3, 0, 3], scale: [0.95, 0.98, 0.95] } :
+                                       {}
+                                     }
+                                     transition={{ duration: 3, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
+                                   />
+                                </div>
+                                <div className="space-y-1 relative z-10">
+                                  <h4 
+                                    className={`text-sm ${editedEvent.galleryDesign?.fontStyle === 'serif' ? 'font-serif' : 'font-sans font-bold italic'}`}
+                                    style={{ color: editedEvent.galleryDesign?.textColor }}
+                                  >
+                                    {editedEvent.title}
+                                  </h4>
+                                  <div className="w-8 h-0.5 mx-auto" style={{ backgroundColor: editedEvent.galleryDesign?.accentColor, opacity: 0.5 }} />
+                                </div>
+                             </div>
+                           );
+                         })()}
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-3xl mt-12">
                     <div className="flex items-center gap-4">
@@ -4290,7 +4397,7 @@ function CreateEventModal({ onClose, onCreate }: { onClose: () => void, onCreate
         textColor: ALBUM_THEMES[0].text,
         accentColor: ALBUM_THEMES[0].accent,
         fontStyle: ALBUM_THEMES[0].font,
-        coverShape: 'oval',
+        coverShape: 'rect',
         showProfile: true
       }
     };
@@ -5225,15 +5332,36 @@ function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDa
     textColor: isDark ? '#FFFFFF' : '#1A1B1E',
     accentColor: '#8B5CF6',
     fontStyle: 'serif',
-    coverShape: 'oval',
+    coverShape: 'rect',
     showProfile: true
   };
+
+  const { scrollY } = useScroll();
+  const parallaxY = useTransform(scrollY, [0, 500], [0, -50]);
+  const parallaxScale = useTransform(scrollY, [0, 500], [1, 1.1]);
+  
+  const blobPaths = [
+    "M0.25,0.1 C0.4,0 0.6,0 0.75,0.1 C0.9,0.25 1,0.45 0.95,0.65 C0.9,0.85 0.7,1 0.5,1 C0.3,1 0,0.9 0.05,0.65 C0.1,0.4 0.1,0.2 0.25,0.1 Z",
+    "M0.3,0.15 C0.45,0.05 0.65,0.1 0.8,0.2 C0.95,0.35 1,0.55 0.9,0.75 C0.8,0.95 0.6,1 0.4,0.95 C0.2,0.9 0,0.8 0.1,0.5 C0.2,0.2 0.2,0.25 0.3,0.15 Z",
+    "M0.2,0.2 C0.35,0.1 0.55,0.05 0.75,0.15 C0.95,0.3 1,0.7 0.85,0.9 C0.7,1.1 0.3,1 0.15,0.8 C0,0.6 0.05,0.3 0.2,0.2 Z"
+  ];
+
+  const wavePaths = [
+    "M0,0.3 C0.2,0.2 0.3,0.4 0.5,0.3 C0.7,0.2 0.8,0.4 1,0.3 L1,1 L0,1 Z",
+    "M0,0.35 C0.15,0.45 0.35,0.25 0.5,0.35 C0.65,0.45 0.85,0.25 1,0.35 L1,1 L0,1 Z",
+    "M0,0.3 C0.2,0.4 0.4,0.2 0.6,0.4 C0.8,0.2 0.9,0.4 1,0.3 L1,1 L0,1 Z"
+  ];
+
+  const abstractPath = "M0.1,0.1 L0.9,0.05 L0.95,0.95 L0.05,0.9 Z";
 
   const getCoverRadiusClass = () => {
     switch (design.coverShape) {
       case 'circle': return 'rounded-full shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)]';
       case 'pill': return 'rounded-[5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)]';
       case 'rect': return 'rounded-3xl shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)]';
+      case 'organic': return 'shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)]';
+      case 'wave': return 'rounded-t-[3rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)]';
+      case 'abstract': return 'rotate-2 shadow-2xl skew-x-1';
       default: return 'rounded-t-[50%] rounded-b-[40%] shadow-[20px_40px_100px_-10px_rgba(0,0,0,0.25)]';
     }
   };
@@ -5249,6 +5377,27 @@ function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDa
     >
       {/* Texture Overlay */}
       <div className="absolute inset-0 pointer-events-none opacity-30 mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/asfalt-dark.png")' }} />
+      
+      {/* SVG Mask Definition */}
+      <svg className="absolute w-0 h-0 overflow-hidden">
+        <defs>
+          <clipPath id="organic-blob-mask" clipPathUnits="objectBoundingBox">
+            <motion.path 
+              animate={{ d: design.coverShape === 'organic' ? blobPaths : blobPaths[0] }}
+              transition={{ duration: 10, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
+            />
+          </clipPath>
+          <clipPath id="wave-mask" clipPathUnits="objectBoundingBox">
+            <motion.path 
+              animate={{ d: design.coverShape === 'wave' ? wavePaths : wavePaths[0] }}
+              transition={{ duration: 6, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
+            />
+          </clipPath>
+          <clipPath id="abstract-mask" clipPathUnits="objectBoundingBox">
+            <path d={abstractPath} />
+          </clipPath>
+        </defs>
+      </svg>
       
       {/* Navbar for guest */}
       <nav className="fixed top-0 w-full z-50 p-6 flex items-center justify-between pointer-events-none">
@@ -5266,56 +5415,205 @@ function GuestView({ event, isDark, userProfile, onClose }: { event: Event, isDa
       </nav>
 
       {/* Hero Landing Section */}
-      <header className="w-full min-h-[100vh] flex flex-col items-center justify-center text-center px-6 relative overflow-hidden max-w-none">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9, y: 30 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-lg aspect-[4/5] md:aspect-square mb-16 flex items-center justify-center"
-        >
-          {/* Subtle glow background */}
-          <div 
-            className="absolute inset-0 blur-[100px] opacity-20 scale-150" 
-            style={{ backgroundColor: design.accentColor }} 
-          />
-          
-          <div className="relative w-full h-full p-8 md:p-12">
-             <div className={`w-full h-full overflow-hidden border-4 border-white/20 transition-all duration-1000 ${getCoverRadiusClass()}`}>
-               <img 
-                 src={event.image || 'https://images.unsplash.com/photo-1519741497674-611481863552'} 
-                 alt={event.title} 
-                 className="w-full h-full object-cover transition-transform duration-[3s] hover:scale-110"
-               />
-             </div>
-          </div>
-        </motion.div>
+      {(() => {
+        const layout = design.heroLayout || 'classic';
+        const coverImage = event.image || 'https://images.unsplash.com/photo-1519741497674-611481863552';
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 1.2 }}
-          className="space-y-6 relative z-10"
-        >
-          <div className="space-y-1">
-             <h1 className="text-5xl md:text-8xl tracking-tighter uppercase font-black" style={{ color: design.textColor }}>
-               {event.title}
-             </h1>
-             <div className="w-24 h-1 mx-auto" style={{ backgroundColor: design.accentColor, opacity: 0.6 }} />
-          </div>
-          <p className="opacity-60 text-lg md:text-2xl italic">
-            {formatEventDate(event.eventDate, language, true)}
-          </p>
-        </motion.div>
+        if (layout === 'apple') {
+          return (
+            <header className="w-full h-screen relative flex flex-col items-center justify-center text-center overflow-hidden">
+               <motion.div 
+                 initial={{ scale: 1 }}
+                 animate={{ scale: 1.05 }}
+                 transition={{ duration: 20, repeat: Infinity, repeatType: "mirror", ease: "linear" }}
+                 className="absolute inset-0 z-0"
+               >
+                 <img src={coverImage} className="w-full h-full object-cover" alt="" />
+                 <div className="absolute inset-0 bg-white/40 backdrop-blur-sm" />
+               </motion.div>
+               
+               <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 transition={{ duration: 1 }}
+                 className="relative z-10 space-y-4"
+               >
+                 <h1 className="text-6xl md:text-8xl font-medium tracking-tight text-black/90">
+                   {event.title}
+                 </h1>
+                 <p className="text-xl md:text-2xl text-black/40 font-light max-w-2xl mx-auto">
+                    {formatEventDate(event.eventDate, language, true)}
+                 </p>
+               </motion.div>
 
-        {/* Scroll Indicator */}
-        <motion.div 
-          animate={{ y: [0, 10, 0] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 opacity-30"
-        >
-          <ArrowDown className="w-6 h-6" />
-        </motion.div>
-      </header>
+               <motion.div 
+                 animate={{ y: [0, 10, 0] }}
+                 transition={{ repeat: Infinity, duration: 2 }}
+                 className="absolute bottom-12 left-1/2 -translate-x-1/2 opacity-30 text-black"
+               >
+                 <ArrowDown className="w-6 h-6" />
+               </motion.div>
+            </header>
+          );
+        }
+
+        if (layout === 'cinematic') {
+          return (
+            <header className="w-full h-screen relative overflow-hidden">
+               <motion.div 
+                 animate={{ scale: [1, 1.15], x: [0, -20], y: [0, -20] }}
+                 transition={{ duration: 30, repeat: Infinity, repeatType: "mirror", ease: "linear" }}
+                 className="absolute inset-0"
+               >
+                 <img src={coverImage} className="w-full h-full object-cover" alt="" />
+                 {/* Dark cinematic overlay */}
+                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                 {/* Vignette */}
+                 <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.8)]" />
+                 {/* Film Grain */}
+                 <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/60-lines.png")' }} />
+               </motion.div>
+
+               <div className="absolute bottom-0 left-0 w-full p-8 md:p-20 z-10">
+                 <motion.div 
+                   initial={{ opacity: 0, x: -30 }}
+                   whileInView={{ opacity: 1, x: 0 }}
+                   transition={{ duration: 1.2, ease: "easeOut" }}
+                   className="max-w-4xl space-y-4"
+                 >
+                   <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-none">
+                     {event.title}
+                   </h1>
+                   <div className="flex items-center gap-4 text-white/60 text-lg md:text-2xl">
+                     <span>{formatEventDate(event.eventDate, language, true)}</span>
+                     <span className="w-8 h-px bg-white/30" />
+                     <span className="uppercase tracking-widest text-sm font-bold">{event.location || 'Special Event'}</span>
+                   </div>
+                 </motion.div>
+               </div>
+
+               <motion.div 
+                 animate={{ y: [0, 10, 0] }}
+                 transition={{ repeat: Infinity, duration: 2 }}
+                 className="absolute bottom-12 right-12 opacity-50 text-white"
+               >
+                 <div className="flex flex-col items-center gap-2">
+                   <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Scroll</span>
+                   <ArrowDown className="w-4 h-4" />
+                 </div>
+               </motion.div>
+            </header>
+          );
+        }
+
+        if (layout === 'modern-split') {
+          return (
+            <header className="w-full h-screen flex flex-col md:flex-row items-center border-b border-black/5">
+              <div className="w-full md:w-[40%] h-1/2 md:h-full flex items-center justify-center p-8 md:p-20">
+                <motion.div 
+                  initial={{ opacity: 0, x: -50 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-6"
+                >
+                  <div className="space-y-2">
+                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight" style={{ color: design.textColor }}>
+                      {event.title}
+                    </h1>
+                    <div className="w-16 h-1.5 bg-primary rounded-full transition-all duration-700" style={{ backgroundColor: design.accentColor }} />
+                  </div>
+                  <p className="text-lg opacity-60 max-w-xs font-medium">
+                    {formatEventDate(event.eventDate, language, true)}
+                  </p>
+                </motion.div>
+              </div>
+              <div className="w-full md:w-[60%] h-1/2 md:h-full relative overflow-hidden p-6 md:p-12">
+                <motion.div 
+                  initial={{ opacity: 0, x: 100, scale: 1.1 }}
+                  whileInView={{ opacity: 1, x: 0, scale: 1 }}
+                  transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+                  className="w-full h-full rounded-[2.5rem] overflow-hidden shadow-2xl relative group"
+                >
+                  <img src={coverImage} className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110" alt={event.title} />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                </motion.div>
+              </div>
+            </header>
+          );
+        }
+
+        // Default Classic Layout
+        return (
+          <header className="w-full min-h-[100vh] flex flex-col items-center justify-center text-center px-6 relative overflow-hidden max-w-none">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-lg aspect-[4/5] md:aspect-square mb-16 flex items-center justify-center"
+            >
+              {/* Subtle glow background */}
+              <div 
+                className="absolute inset-0 blur-[100px] opacity-20 scale-150" 
+                style={{ backgroundColor: design.accentColor }} 
+              />
+              
+              <div className="relative w-full h-full p-8 md:p-12">
+                 <div 
+                   className={`w-full h-full overflow-hidden border-4 border-white/20 transition-all duration-1000 ${getCoverRadiusClass()}`}
+                   style={{ 
+                     clipPath: design.coverShape === 'organic' ? 'url(#organic-blob-mask)' : 
+                               design.coverShape === 'wave' ? 'url(#wave-mask)' :
+                               design.coverShape === 'abstract' ? 'url(#abstract-mask)' :
+                               undefined,
+                     WebkitClipPath: design.coverShape === 'organic' ? 'url(#organic-blob-mask)' : 
+                                     design.coverShape === 'wave' ? 'url(#wave-mask)' :
+                                     design.coverShape === 'abstract' ? 'url(#abstract-mask)' :
+                                     undefined 
+                   }}
+                 >
+                   <motion.img 
+                     src={coverImage} 
+                     alt={event.title} 
+                     className="w-full h-full object-cover"
+                     animate={{}}
+                     style={{
+                       y: 0,
+                       scale: 1
+                     }}
+                     transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+                   />
+                 </div>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 1.2 }}
+              className="space-y-6 relative z-10"
+            >
+              <div className="space-y-1">
+                 <h1 className="text-5xl md:text-8xl tracking-tighter uppercase font-black" style={{ color: design.textColor }}>
+                   {event.title}
+                 </h1>
+                 <div className="w-24 h-1 mx-auto" style={{ backgroundColor: design.accentColor, opacity: 0.6 }} />
+              </div>
+              <p className="opacity-60 text-lg md:text-2xl italic">
+                {formatEventDate(event.eventDate, language, true)}
+              </p>
+            </motion.div>
+
+            {/* Scroll Indicator */}
+            <motion.div 
+              animate={{ y: [0, 10, 0] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="absolute bottom-12 left-1/2 -translate-x-1/2 opacity-30"
+            >
+              <ArrowDown className="w-6 h-6" />
+            </motion.div>
+          </header>
+        );
+      })()}
 
       {/* Gallery Section */}
       <main className="w-full max-w-none pb-32">
